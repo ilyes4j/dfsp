@@ -1,0 +1,23 @@
+################################################################################
+DFSP : Depth First Stability Processor
+       coded by Mohamed Ilyes Dimassi ilyes.dimassi@gmail.com 
+################################################################################
+
+==== How to Compile ====
+
+1. Setup the GMP library
+Download The GNU MP Bignum Library at https://gmplib.org, unpack the archive
+file and rename its top directory to gmp. Place the gmp folder inside
+{dfsp_directory}/libs.
+GMP has an autoconf/automake/libtool based configuration system. On a Unix-like
+system a basic build can be done by typing these three commands in a terminal :
+cd {dfsp_directory}/libs/gmp
+./configure
+make
+
+2. Buil DFSP
+DFSP can be built by typing these two commands in a terminal :
+cd {dfsp_directory}/release
+make
+Then you can see "dfsp" (or dfsp.exe) inside {dfsp_directory}/release.
+
