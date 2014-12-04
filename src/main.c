@@ -10,7 +10,7 @@
  notice, this list of conditions and the following disclaimer in the
  documentation and/or other materials provided with the distribution.
  3. All advertising materials mentioning features or use of this software
- must display the following acknowledgement:
+ must display the following acknowledgment:
  This product includes software developed by the Mohamed Ilyes Dimassi.
  4. Neither the name of the FST http://www.fst.rnu.tn/ nor the
  names of its contributors may be used to endorse or promote products
@@ -47,21 +47,20 @@ int main(void) {
 
 	char contextFiles[][50] = { "db/poc_sample_bi.data", "db/lenses_bi.data",
 			"db/post-operative_bi.data", "db/poc_sample_2_bi.data",
-			"db/adult-stretch_bi.data", "db/hayes-roth_bi.data",
-			"db/servo_bi.data", "db/SPECT_test_bi.data", "db/zoo_bi.data",
-			"db/mushroom_bi.data", "db.dat/mushroom.dat", "accidents.dat",
-			"data/chess/chess.dat", "connect.dat", "pumsb.dat", "retail.dat",
-			"T10I4D100K.dat", "T40I10D100K.dat", "mushroom.dat" };
+			"db/adult-stretch_bi.data", "db/hayes-roth_bi.data", "db/servo_bi.data",
+			"db/SPECT_test_bi.data", "db/zoo_bi.data", "db/mushroom_bi.data",
+			"db.dat/mushroom.dat", "accidents.dat", "data/chess/chess.dat",
+			"connect.dat", "pumsb.dat", "retail.dat", "T10I4D100K.dat",
+			"T40I10D100K.dat", "mushroom.dat" };
 
 	char conceptFiles[][50] = { "db/poc_concepts_sample_bi.data",
 			"db/lenses_concepts.data", "db/post-operative-concepts.data",
 			"db/poc_sample_2_concepts.data", "db/adult-stretch_concepts.data",
 			"db/hayes-roth_concepts.data", "db/servo_concepts.data",
 			"db/SPECT_test_concepts.data", "db/zoo_concepts.data",
-			"db/mushroom_concepts.data",
-			"db.dat/mushroom_lcm_concepts_1000.dat", "accidents_concepts.dat",
-			"data/chess/chess_concepts.dat", "connect_concepts.dat",
-			"pumsb_concepts.dat", "retail_concepts.dat",
+			"db/mushroom_concepts.data", "db.dat/mushroom_lcm_concepts_1000.dat",
+			"accidents_concepts.dat", "data/chess/chess_concepts.dat",
+			"connect_concepts.dat", "pumsb_concepts.dat", "retail_concepts.dat",
 			"T10I4D100K_concepts.dat", "T40I10D100K_concepts.dat",
 			"mushroom_concepts.dat" };
 
@@ -97,7 +96,7 @@ int main(void) {
 
 	selectedDatabase = 12;
 
-	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V2.0...\n\n");
+	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta...\n\n");
 
 	printf("Using Database %s\n", contextFiles[selectedDatabase]);
 	printf("Using Database %s\n", conceptFiles[selectedDatabase]);
@@ -105,7 +104,7 @@ int main(void) {
 	printf("\nLoading transactions...\n");
 
 	transactions = (Transactions *) malloc(sizeof(Transactions));
-	loadDATContextFile(contextFiles[selectedDatabase], transactions);
+	loadDATContextFile2(contextFiles[selectedDatabase], transactions);
 
 	printf("Transactions loaded [OK]\n");
 
@@ -117,7 +116,7 @@ int main(void) {
 
 	printf("Formal Concepts Loaded [OK]\n\n");
 
-	initTransetPool();
+	initTransetPool(transactions->transactionsCount, transactions->limbCount);
 
 	printf("Output format :\n");
 	//printf("<Extent,Intent>\n");
@@ -128,7 +127,11 @@ int main(void) {
 	conceptList = concepts->concepts;
 	conceptListCount = concepts->count;
 
-	for (conceptCounter = 0; conceptCounter < conceptListCount;
+	//	for (conceptCounter = 0; conceptCounter < conceptListCount;
+	//			conceptCounter++) {
+
+	for (conceptCounter = 0;
+			conceptCounter < 2 && conceptCounter < conceptListCount;
 			conceptCounter++) {
 
 		currentConcept = conceptList + conceptCounter;
@@ -158,8 +161,8 @@ int main(void) {
 		nodeCount = root->childrenCount;
 
 		if (root->childrenCount > 1 && nodeCount < NODE_COUNT_THRESHOLD) {
-			processRecursive(root, &currCptGenCountGMP,
-					&currCptGenLocalCountGMP, transactions, currCptItemsCnt);
+			processRecursive(root, &currCptGenCountGMP, &currCptGenLocalCountGMP,
+					transactions, currCptItemsCnt);
 		}
 
 		clock_gettime(CLOCK_REALTIME, &end);
@@ -175,15 +178,10 @@ int main(void) {
 
 			mpf_set_z(fltCurrCptGenCountGMP, currCptGenCountGMP);
 			mpf_set_z(fltCurrCptTotalCountGMP, currCptTotalCountGMP);
-			mpf_div(fltCurrCptStab, fltCurrCptGenCountGMP,
-					fltCurrCptTotalCountGMP);
+			mpf_div(fltCurrCptStab, fltCurrCptGenCountGMP, fltCurrCptTotalCountGMP);
 
-			//printf("\n");
-			//printfConcept(currentConcept);
-			//printf("\n");
-
-			gmp_printf("%4u; %6u; %10u; %ld,%ld; %.5Ff\n", conceptCounter,
-					currCptTransCnt, nodeCount, thediff.tv_sec, thediff.tv_nsec,
+			gmp_printf("%4u; %6u; %10u; %3ld,%-5ld; %.5Ff\n", conceptCounter,
+					currCptTransCnt, nodeCount, thediff.tv_sec, thediff.tv_nsec / 10000,
 					fltCurrCptStab);
 		}
 
@@ -200,10 +198,11 @@ int main(void) {
 		mpf_clear(fltCurrCptStab);
 	}
 
-	freeTransetRepo();
+	freeTransetRepo(transactions->transactionsCount);
 
 	unloadConcepts(concepts);
 
+	free(transactions->transBuffArea);
 	free(transactions->encodedTransactions);
 	free(transactions);
 

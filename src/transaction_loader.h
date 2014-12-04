@@ -36,25 +36,27 @@
 #include "gmp.h"
 
 ////////////////////////////////////////////////////////////////////////////////
+//initialize the unsigned int buffer bit count
+#define UINT_BIT_COUNT (sizeof(T_INT) * CHAR_BIT)
+
+//the last bit in an integer buffer
+#define LAST_BIT_INDEX (UINT_BIT_COUNT - 1)
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 #define CONCEPTS_COUNT ( 3316 )
 
-#define MAX_CXT_LINE_ITEMS ( 75 )
-
-#define LIMBS_MAX_COUNT ( 3 )
-
-#define TRANS_MAX_COUNT ( 3196 )
+//#define MAX_CXT_LINE_ITEMS ( 75 )
 ////////////////////////////////////////////////////////////////////////////////
 
 //at most 10 characters per item including spaces, more than enough
-#define MAX_CXT_LINE_CHARS ( MAX_CXT_LINE_ITEMS * 10 + 2 )
+#define MAX_CXT_LINE_CHARS ( 75 * 10 + 2 )
 
 //at most 10 characters per item and object in addition to "<" "," ">" and "\n"
-#define MAX_BIN_CPT_LINE_CHARS ( (TRANS_MAX_COUNT + MAX_CXT_LINE_ITEMS) * 10 + 5 )
+#define MAX_BIN_CPT_LINE_CHARS ( (3196 + 75) * 10 + 5 )
 
 //at most 10 characters per item or object "\n"
-#define MAX_LCM_CPT_LINE_CHARS ( max(TRANS_MAX_COUNT, MAX_CXT_LINE_ITEMS) * 10 + 2 )
-
-#define POOL_SIZE (TRANS_MAX_COUNT)
+#define MAX_LCM_CPT_LINE_CHARS ( max(3196, 75) * 10 + 2 )
 
 #define NODE_COUNT_THRESHOLD 120000000
 //#define NODE_COUNT_THRESHOLD 2000000
@@ -78,7 +80,7 @@ TIMESPEC diffTime(TIMESPEC start, TIMESPEC end);
 TIMESPEC sumTime(TIMESPEC start, TIMESPEC end);
 
 struct transaction {
-	T_INT buffer[LIMBS_MAX_COUNT];
+	T_INT * buffer;
 	T_INT bufferSize;
 	T_INT firstSignificantLimb;
 	T_INT limbCount;
@@ -89,10 +91,12 @@ struct transaction {
 typedef struct transaction Transaction;
 
 struct transactions {
+	T_INT limbCount;
 	T_INT itemCount;
 	T_INT transactionsCount;
 	Transaction *encodedTransactions;
 	T_INT itemsPerLimb;
+	T_INT * transBuffArea;
 };
 typedef struct transactions Transactions;
 
@@ -101,11 +105,6 @@ struct concept {
 	T_INT *transactions;
 	T_INT itemsCount;
 	T_INT transactionsCount;
-	//T_INT nonGeneratorsCount;
-	//T_INT generatorsCount;
-	//double stabilityNonGen;
-	//double stabilityGen;
-	//mpf_t stabilityNonGenGMP;
 	T_INT processed;
 };
 typedef struct concept Concept;
@@ -128,15 +127,12 @@ typedef struct alloctranset AllocTranset;
 
 struct transactionset {
 
-	// TODO to be removed
-	//T_INT isForbidden;
 	T_INT transactions;
 
 	//sorting and moving plain memory blocks is expensive.
 	//struct transactionset * transPtrs[TRANS_MAX_COUNT];
 
 	T_INT childrenCount;
-	//T_INT forbiddenChildrenCount;
 
 	Transaction intersect;
 
@@ -149,6 +145,8 @@ void loadContextFile(char * file, Transactions *context);
 
 void loadDATContextFile(char * file, Transactions *context);
 
+void loadDATContextFile2(char * file, Transactions *context);
+
 void loadConceptsFile(char *file, Concepts *concepts, T_INT transactionsCount, T_INT itemsCount);
 
 void loadLCMConceptsFile(char *file, Concepts *concepts, T_INT transactionsCount, T_INT itemsCount);
@@ -157,13 +155,13 @@ void unloadConcepts(Concepts * concepts);
 
 void printfConcept(Concept * concept);
 
-void initTransetPool();
+void initTransetPool(T_INT transCount, T_INT limbCount);
 
 void pushTranset(AllocTranset * toPush);
 
 AllocTranset * popTranset();
 
-void freeTransetRepo();
+void freeTransetRepo(T_INT transCount);
 
 int compareCptByTransetSize(const void * a, const void * b);
 
