@@ -42,12 +42,15 @@ extern Transactionset ** transPtrs;
 extern Transaction backupInter;
 extern Transaction leadInter;
 
-//Build the root Transactionset.
-//The root Transactionset contains an array of children Transactionsets.
-//Each child is a single-transactions Transactionset in the formal concept
-//extent. For each single-transaction Transactionset is flagged as a generator
-//or a non generator. A generator is flagged as forbidden and will later be
-//ignored from the exploration process
+T_INT getExploredNodesCount(){
+	return nodeCount;
+}
+
+//Build the root Transactionset. The root Transactionset contains an array of
+//children Transactionsets. Each child is a single-transactions Transactionset
+//in the formal concept extent. For each single-transaction Transactionset is
+//flagged as a generator or a non generator. A generator is flagged as forbidden
+//and will later be ignored from the exploration process
 Transactionset * initialize(T_INT *items, T_INT itemsCount,
 		mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP,
 		Transactions * transactions, T_INT refCount) {
@@ -124,21 +127,13 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 		j++;
 	}
 
-	//qsort(elements, j, sizeof(Transactionset), compareTransetByCardAsc);
-	//qsort(elements, j, sizeof(Transactionset), compareTransetByCardDesc);
-
-	//qsort(elementsPtrs, j, sizeof(Transactionset*), compareTransetPtrByCardDesc);
-
-	//	printf("\n");
-	//	for (i = 0; i < j; i++) {
-	//		printf("%u ", elements[i].intersect.itemCount);
-	//	}
-	//	printf("\n");
-
 	ret = (Transactionset *) malloc(sizeof(Transactionset));
 	ret->children = elements;
 	ret->alloc = alloc;
 	ret->childrenCount = j;
+
+	//initialize the number of explored candidates
+	nodeCount = j;
 
 	//GMP positive counting
 	//counting all generators and their supersets using GMP Bignum structures
@@ -237,8 +232,6 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		srcPtrs[i] = currentChildren + i;
 	}
 
-	//qsort(currentChildren, currentCount, sizeof(Transactionset), compareTransetByCardDesc);
-
 	qsort(srcPtrs, currentCount, sizeof(Transactionset*),
 			compareTransetPtrByCardDesc);
 
@@ -271,8 +264,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	memcpy(backupInter.buffer, srcIntersect->buffer,
 			srcIntersect->limbCount * sizeof(T_INT));
 
-	//do not forget to update the counter which will be used in the next
-	//loop
+	//do not forget to update the counter which will be used in the next loop
 	counter--;
 
 	transPtrs[endIdx] = srcTranset;
@@ -302,8 +294,6 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 			endIdx--;
 		}
 	}
-
-	//printf("%4u/%4u\n", startIdx, currentCount);
 
 	//crossing session level
 	for (i = 0; i < startIdx; i++) {
@@ -393,28 +383,6 @@ T_INT elementsCount(Transactionset * root) {
 		currentChild = children + i;
 
 		eltCount += elementsCount(currentChild);
-	}
-
-	return eltCount;
-}
-
-//Debug-only function
-//Count all non-generators nodes in a Tranasctionset recursively
-T_INT nonForbiddenElementsCount(Transactionset * root) {
-
-	Transactionset * children;
-
-	T_INT childrenCount;
-	T_INT i;
-	T_INT eltCount;
-
-	children = root->children;
-	childrenCount = root->childrenCount;
-
-	eltCount = root->childrenCount;
-
-	for (i = 0; i < childrenCount; i++) {
-		eltCount += nonForbiddenElementsCount(children + i);
 	}
 
 	return eltCount;

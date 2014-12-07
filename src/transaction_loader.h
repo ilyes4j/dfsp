@@ -31,35 +31,17 @@
 #ifndef TRANS_LOADER_H_
 #define TRANS_LOADER_H_
 
-#include "limits.h"
-#include "time.h"
-#include "gmp.h"
+#include <limits.h>
+#include <time.h>
+#include <gmp.h>
 
-////////////////////////////////////////////////////////////////////////////////
 //initialize the unsigned int buffer bit count
 #define UINT_BIT_COUNT (sizeof(T_INT) * CHAR_BIT)
 
 //the last bit in an integer buffer
 #define LAST_BIT_INDEX (UINT_BIT_COUNT - 1)
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-#define CONCEPTS_COUNT ( 3316 )
-
-//#define MAX_CXT_LINE_ITEMS ( 75 )
-////////////////////////////////////////////////////////////////////////////////
-
-//at most 10 characters per item including spaces, more than enough
-#define MAX_CXT_LINE_CHARS ( 75 * 10 + 2 )
-
-//at most 10 characters per item and object in addition to "<" "," ">" and "\n"
-#define MAX_BIN_CPT_LINE_CHARS ( (3196 + 75) * 10 + 5 )
-
-//at most 10 characters per item or object "\n"
-#define MAX_LCM_CPT_LINE_CHARS ( max(3196, 75) * 10 + 2 )
 
 #define NODE_COUNT_THRESHOLD 120000000
-//#define NODE_COUNT_THRESHOLD 2000000
 
 //------------------------------------------------------------------------------
 //Types definitions
@@ -84,8 +66,9 @@ struct transaction {
 	T_INT bufferSize;
 	T_INT firstSignificantLimb;
 	T_INT limbCount;
-	//keep track of the bits set to 1 which represent the total count of
-	//items in this itemset
+
+	//keep track of the bits set to 1 which represent the total count of items in
+	//this itemset
 	T_INT itemCount;
 };
 typedef struct transaction Transaction;
@@ -129,9 +112,6 @@ struct transactionset {
 
 	T_INT transactions;
 
-	//sorting and moving plain memory blocks is expensive.
-	//struct transactionset * transPtrs[TRANS_MAX_COUNT];
-
 	T_INT childrenCount;
 
 	Transaction intersect;
@@ -141,15 +121,10 @@ struct transactionset {
 	AllocTranset * alloc;
 };
 
-void loadContextFile(char * file, Transactions *context);
-
 void loadDATContextFile(char * file, Transactions *context);
 
-void loadDATContextFile2(char * file, Transactions *context);
-
-void loadConceptsFile(char *file, Concepts *concepts, T_INT transactionsCount, T_INT itemsCount);
-
-void loadLCMConceptsFile(char *file, Concepts *concepts, T_INT transactionsCount, T_INT itemsCount);
+void loadLCMConceptsFile(char *file, Concepts *concepts,
+		T_INT transactionsCount, T_INT itemsCount);
 
 void unloadConcepts(Concepts * concepts);
 

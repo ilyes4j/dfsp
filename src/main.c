@@ -30,20 +30,15 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "gmp.h"
+#include <gmp.h>
 #include "stability_processor.h"
 #include "transaction_loader.h"
-
-extern T_INT nodeCount;
 
 int main(void) {
 
 	//--------------------------------------------------------------------------
 	// Variables declaration
 	//--------------------------------------------------------------------------
-
-	//Performance profiling
-	TIMESPEC thediff;
 
 	char contextFiles[][50] = { "db/poc_sample_bi.data", "db/lenses_bi.data",
 			"db/post-operative_bi.data", "db/poc_sample_2_bi.data",
@@ -64,11 +59,13 @@ int main(void) {
 			"T10I4D100K_concepts.dat", "T40I10D100K_concepts.dat",
 			"mushroom_concepts.dat" };
 
-	TIMESPEC start, end;
+	//Performance profiling
+	TIMESPEC start, end, diff;
 
 	Transactionset * root;
 
-	Transactions * transactions;
+	Transactions trans;
+	Transactions * transPtr;
 
 	Concepts * concepts;
 	Concept * conceptList;
@@ -80,6 +77,10 @@ int main(void) {
 	T_INT conceptListCount;
 
 	T_INT selectedDatabase;
+	char * selectedContextFile;
+	char * selectedConceptsFile;
+
+	T_INT exploredNodesCount;
 
 	mpz_t currCptNonGenCountGMP;
 	mpz_t currCptGenCountGMP;
@@ -94,33 +95,37 @@ int main(void) {
 	// Processing
 	//--------------------------------------------------------------------------
 
+	transPtr = &trans;
+
 	selectedDatabase = 12;
+	selectedContextFile = contextFiles[selectedDatabase];
+	selectedConceptsFile = conceptFiles[selectedDatabase];
 
 	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta...\n\n");
 
-	printf("Using Database %s\n", contextFiles[selectedDatabase]);
-	printf("Using Database %s\n", conceptFiles[selectedDatabase]);
+	printf("Using Database %s\n", selectedContextFile);
+	printf("Using Database %s\n", selectedConceptsFile);
 
 	printf("\nLoading transactions...\n");
 
-	transactions = (Transactions *) malloc(sizeof(Transactions));
-	loadDATContextFile2(contextFiles[selectedDatabase], transactions);
+	loadDATContextFile(selectedContextFile, transPtr);
 
 	printf("Transactions loaded [OK]\n");
 
 	printf("\nLoading Formal Concepts...\n");
 
 	concepts = (Concepts *) malloc(sizeof(Concepts));
-	loadLCMConceptsFile(conceptFiles[selectedDatabase], concepts,
-			transactions->transactionsCount, transactions->itemCount);
+
+	loadLCMConceptsFile(selectedConceptsFile, concepts,
+			transPtr->transactionsCount, transPtr->itemCount);
 
 	printf("Formal Concepts Loaded [OK]\n\n");
 
-	initTransetPool(transactions->transactionsCount, transactions->limbCount);
+	initTransetPool(transPtr->transactionsCount, transPtr->limbCount);
 
 	printf("Output format :\n");
 	//printf("<Extent,Intent>\n");
-	printf("[Index] [Extent size] [visited] [Time] [Stability]\n");
+	printf("[Index] [Extent] [visited] [Time] [Stability]\n");
 
 	printf("\nProcessing concepts...\n");
 
@@ -131,7 +136,7 @@ int main(void) {
 	//			conceptCounter++) {
 
 	for (conceptCounter = 0;
-			conceptCounter < 2 && conceptCounter < conceptListCount;
+			conceptCounter < 20 && conceptCounter < conceptListCount;
 			conceptCounter++) {
 
 		currentConcept = conceptList + conceptCounter;
@@ -152,21 +157,21 @@ int main(void) {
 		//obtained efficiently by setting the currCptTransCnt bit
 		mpz_setbit(currCptTotalCountGMP, currCptTransCnt);
 
-		clock_gettime(CLOCK_REALTIME, &start);
+		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
 		root = initialize(currentConcept->transactions, currCptTransCnt,
-				&currCptGenCountGMP, &currCptGenLocalCountGMP, transactions,
+				&currCptGenCountGMP, &currCptGenLocalCountGMP, transPtr,
 				currCptItemsCnt);
 
-		nodeCount = root->childrenCount;
-
-		if (root->childrenCount > 1 && nodeCount < NODE_COUNT_THRESHOLD) {
+		if (root->childrenCount > 1) {
 			processRecursive(root, &currCptGenCountGMP, &currCptGenLocalCountGMP,
-					transactions, currCptItemsCnt);
+					transPtr, currCptItemsCnt);
 		}
 
-		clock_gettime(CLOCK_REALTIME, &end);
-		thediff = diffTime(start, end);
+		exploredNodesCount = getExploredNodesCount();
+
+		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+		diff = diffTime(start, end);
 
 		//Whether using positive or negative counting
 		//Stability is obtained using the same method
@@ -174,15 +179,15 @@ int main(void) {
 		mpf_init2(fltCurrCptTotalCountGMP, 1000);
 		mpf_init2(fltCurrCptStab, 1000);
 
-		if (nodeCount < NODE_COUNT_THRESHOLD) {
+		if (exploredNodesCount < NODE_COUNT_THRESHOLD) {
 
 			mpf_set_z(fltCurrCptGenCountGMP, currCptGenCountGMP);
 			mpf_set_z(fltCurrCptTotalCountGMP, currCptTotalCountGMP);
 			mpf_div(fltCurrCptStab, fltCurrCptGenCountGMP, fltCurrCptTotalCountGMP);
 
 			gmp_printf("%4u; %6u; %10u; %3ld,%-5ld; %.5Ff\n", conceptCounter,
-					currCptTransCnt, nodeCount, thediff.tv_sec, thediff.tv_nsec / 10000,
-					fltCurrCptStab);
+					currCptTransCnt, exploredNodesCount, diff.tv_sec,
+					diff.tv_nsec / 10000, fltCurrCptStab);
 		}
 
 		pushTranset(root->alloc);
@@ -198,13 +203,12 @@ int main(void) {
 		mpf_clear(fltCurrCptStab);
 	}
 
-	freeTransetRepo(transactions->transactionsCount);
+	freeTransetRepo(transPtr->transactionsCount);
 
 	unloadConcepts(concepts);
 
-	free(transactions->transBuffArea);
-	free(transactions->encodedTransactions);
-	free(transactions);
+	free(transPtr->transBuffArea);
+	free(transPtr->encodedTransactions);
 
 	printf("Concepts Processed [OK]\n");
 

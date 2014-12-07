@@ -33,8 +33,6 @@
 
 #include "transaction_loader.h"
 
-T_INT isForbidden();
-
 Transactionset * initialize(T_INT *items, T_INT itemsCount, mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, Transactions * transactions, T_INT refCount);
 
 void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, Transactions * transactions, T_INT refCount);
@@ -42,6 +40,8 @@ void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP, mpz_t 
 T_INT elementsCount(Transactionset * root);
 
 T_INT nonForbiddenElementsCount(Transactionset * root);
+
+T_INT getExploredNodesCount();
 
 void displayElements(Transactionset * root);
 

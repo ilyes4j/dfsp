@@ -77,142 +77,35 @@ int min(int a, int b) {
 	return a > b ? b : a;
 }
 
-void loadConceptsFile(char *file, Concepts *concepts, T_INT transactionsCount,
-		T_INT itemsCount) {
+void getConceptsFileParams(FILE *filePointer, size_t * linesCountPtr,
+		size_t * lineSizePtr) {
 
-	//--------------------------------------------------------------------------
-	// Variables declaration
-	//--------------------------------------------------------------------------
+	char *line;
 
-	//a pointer to the file holding the transactions' list
-	FILE *filePointer;
+	size_t len = 0;
 
-	T_INT conceptsCount;
+	size_t lineSize = 0;
 
-	T_INT conceptsCounter;
+	size_t lineCount = 0;
 
-	Concept * conceptList;
+	ssize_t read;
 
-	Concept * currentConcept;
+	//processing
+	line = NULL;
 
-	//holds one line of the concepts file
-	char line[MAX_BIN_CPT_LINE_CHARS];
+	while ((read = getline(&line, &len, filePointer)) != -1) {
 
-	char *strItem;
-
-	char *extent, *intent;
-
-	T_INT * transactionsBuffer;
-
-	T_INT * itemsBuffer;
-
-	T_INT transactionsCounter;
-
-	T_INT itemsCounter;
-
-	T_INT element;
-
-	T_INT * conceptTransactions;
-
-	T_INT * conceptItems;
-
-	//--------------------------------------------------------------------------
-	// Processing
-	//--------------------------------------------------------------------------
-
-	//read the transactions file
-	filePointer = fopen(file, "r");
-
-	//exit if there is any problem reading that file
-	if (filePointer == NULL) {
-		printf("Error while reading input file !");
-		exit(EXIT_FAILURE);
+		lineCount++;
+		lineSize = max(read, lineSize);
 	}
 
-	conceptsCount = 0;
+	//add extra room for the null termination char
+	lineSize++;
 
-	if (fgets(line, MAX_BIN_CPT_LINE_CHARS, filePointer) == NULL) {
-		printf("Error while parsing the transactions count line !\n");
-		exit(EXIT_FAILURE);
-	}
-	strItem = strtok(line, " \n");
-	if (strItem == NULL) {
-		printf("Error while reading the concepts count!\n");
-		exit(EXIT_FAILURE);
-	}
-	conceptsCount = strtoul(strItem, NULL, 10);
-	if (conceptsCount == 0) {
-		printf("Error while parsing the concepts count !\n");
-		exit(EXIT_FAILURE);
-	}
+	*lineSizePtr = lineSize;
+	*linesCountPtr = lineCount;
 
-	transactionsBuffer = (T_INT *) malloc(sizeof(T_INT) * transactionsCount);
-
-	itemsBuffer = (T_INT *) malloc(sizeof(T_INT) * itemsCount);
-
-	conceptList = (Concept *) malloc(sizeof(Concept) * conceptsCount);
-
-	conceptsCounter = 0;
-
-	//reading the file line by line
-	while (fgets(line, MAX_BIN_CPT_LINE_CHARS, filePointer) != NULL) {
-
-		extent = strtok(line, ",\n");
-		if (extent == NULL) {
-			printf("Error empty extent !\n");
-			exit(EXIT_FAILURE);
-		}
-
-		intent = strtok(NULL, "\n");
-		if (intent == NULL) {
-			printf("Error empty intent !\n");
-			exit(EXIT_FAILURE);
-		}
-
-		transactionsCounter = 0;
-		itemsCounter = 0;
-
-		strItem = strtok(extent, " ");
-		while (strItem != NULL) {
-			element = strtoul(strItem, NULL, 10);
-			transactionsBuffer[transactionsCounter] = element;
-			transactionsCounter++;
-			strItem = strtok(NULL, " \n");
-		}
-
-		strItem = strtok(intent, " ");
-		while (strItem != NULL) {
-			element = strtoul(strItem, NULL, 10);
-			itemsBuffer[itemsCounter] = element;
-			itemsCounter++;
-			strItem = strtok(NULL, " \n");
-		}
-
-		conceptTransactions = (T_INT *) malloc(sizeof(T_INT) * transactionsCounter);
-		memcpy(conceptTransactions, transactionsBuffer,
-				sizeof(T_INT) * transactionsCounter);
-
-		conceptItems = (T_INT *) malloc(sizeof(T_INT) * itemsCounter);
-		memcpy(conceptItems, itemsBuffer, sizeof(T_INT) * itemsCounter);
-
-		currentConcept = conceptList + conceptsCounter;
-		currentConcept->transactions = conceptTransactions;
-		currentConcept->transactionsCount = transactionsCounter;
-		currentConcept->items = conceptItems;
-		currentConcept->itemsCount = itemsCounter;
-
-		conceptsCounter++;
-	}
-
-	//sort concepts ascending as larger concepts takes more time to process
-	qsort(conceptList, conceptsCount, sizeof(Concept), compareCptByTransetSize);
-
-	concepts->concepts = conceptList;
-	concepts->count = conceptsCount;
-
-	free(transactionsBuffer);
-	free(itemsBuffer);
-	fclose(filePointer);
+	free(line);
 }
 
 void loadLCMConceptsFile(char *file, Concepts *concepts,
@@ -234,7 +127,7 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 	Concept * currentConcept;
 
 	//holds one line of the concepts file
-	char line[MAX_LCM_CPT_LINE_CHARS];
+	char *line;
 
 	char *strItem;
 
@@ -252,6 +145,10 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 	T_INT * conceptItems;
 
+	size_t lineSize;
+
+	size_t linesCount;
+
 	//--------------------------------------------------------------------------
 	// Processing
 	//--------------------------------------------------------------------------
@@ -261,11 +158,21 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 	//exit if there is any problem reading that file
 	if (filePointer == NULL) {
-		printf("Error while reading input file !");
+		printf("Error while opening concepts file %s !", file);
 		exit(EXIT_FAILURE);
 	}
 
-	conceptsCount = CONCEPTS_COUNT;
+	getConceptsFileParams(filePointer, &linesCount, &lineSize);
+
+	if (linesCount % 2 != 0) {
+		printf("Error while parsing concept file !\n");
+		exit(EXIT_FAILURE);
+	}
+
+	//reset the file pointer to the start of the file for a second full scan
+	fseek(filePointer, 0, SEEK_SET);
+
+	conceptsCount = linesCount / 2;
 
 	transactionsBuffer = (T_INT *) malloc(sizeof(T_INT) * transactionsCount);
 
@@ -273,10 +180,12 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 	conceptList = (Concept *) malloc(sizeof(Concept) * conceptsCount);
 
+	line = (char *) malloc(sizeof(char) * lineSize);
+
 	conceptsCounter = 0;
 
 	//reading the file line by line
-	while (fgets(line, MAX_LCM_CPT_LINE_CHARS, filePointer) != NULL) {
+	while (fgets(line, lineSize, filePointer) != NULL) {
 
 		transactionsCounter = 0;
 		itemsCounter = 0;
@@ -289,7 +198,7 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 			strItem = strtok(NULL, " \n");
 		}
 
-		if (fgets(line, MAX_LCM_CPT_LINE_CHARS, filePointer) == NULL) {
+		if (fgets(line, lineSize, filePointer) == NULL) {
 			printf("Missing extent line !");
 			exit(EXIT_FAILURE);
 		}
@@ -318,12 +227,13 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 		conceptsCounter++;
 	}
 
-	//sort concepts ascending as larger concepts takes more time to process
+	//sort concepts ascending as larger concepts usually takes more time to process
 	qsort(conceptList, conceptsCount, sizeof(Concept), compareCptByTransetSize);
 
 	concepts->concepts = conceptList;
 	concepts->count = conceptsCount;
 
+	free(line);
 	free(transactionsBuffer);
 	free(itemsBuffer);
 	fclose(filePointer);
@@ -349,8 +259,8 @@ void unloadConcepts(Concepts * concepts) {
 	free(concepts);
 }
 
-void getFileParams(FILE *filePointer, size_t * transCount, size_t * itemsCount,
-		size_t * lineSize) {
+void getContextFileParams(FILE *filePointer, size_t * transCount,
+		size_t * itemsCount, size_t * lineSize) {
 
 	char *line;
 
@@ -408,6 +318,9 @@ void getFileParams(FILE *filePointer, size_t * transCount, size_t * itemsCount,
 		maxItemsCount = max(maxItemsCount, currentLineItemsCount);
 	}
 
+	//add extra room for the null termination char
+	maxlineSize++;
+
 	*itemsCount = maxItemsCount;
 	*lineSize = maxlineSize;
 	*transCount = maxTransCount;
@@ -415,7 +328,7 @@ void getFileParams(FILE *filePointer, size_t * transCount, size_t * itemsCount,
 	free(line);
 }
 
-void loadDATContextFile2(char * file, Transactions *context) {
+void loadDATContextFile(char * file, Transactions *context) {
 
 	//--------------------------------------------------------------------------
 	// Variables declaration
@@ -485,16 +398,14 @@ void loadDATContextFile2(char * file, Transactions *context) {
 
 	//exit if there is any problem reading that file
 	if (filePointer == NULL) {
-		printf("Error while reading input file !");
+		printf("Error while opening context file %s !", file);
 		exit(EXIT_FAILURE);
 	}
 
-	getFileParams(filePointer, &transactionsCount, &itemsCount, &lineSize);
+	getContextFileParams(filePointer, &transactionsCount, &itemsCount, &lineSize);
 
+	//reset the file pointer to the start of the file for a second full scan
 	fseek(filePointer, 0, SEEK_SET);
-
-	//add extra room for the null termination char
-	lineSize++;
 
 	transactions = (Transaction *) malloc(
 			sizeof(Transaction) * transactionsCount);
@@ -532,6 +443,11 @@ void loadDATContextFile2(char * file, Transactions *context) {
 			strItem = strtok(NULL, " \n");
 			lineBuffer[currentLineItemsIndex] = currentLineItem;
 			currentLineItemsIndex++;
+
+			if (currentLineItemsIndex >= itemsCount) {
+				printf("Error while parsing context file !");
+				exit(EXIT_FAILURE);
+			}
 		}
 
 		maxLimbIndex = 0;
@@ -589,376 +505,6 @@ void loadDATContextFile2(char * file, Transactions *context) {
 
 	fclose(filePointer);
 }
-
-//void loadDATContextFile(char * file, Transactions *context) {
-//
-//	//--------------------------------------------------------------------------
-//	// Variables declaration
-//	//--------------------------------------------------------------------------
-//
-//	//a pointer to the file holding the transactions' list
-//	FILE *filePointer;
-//
-//	//holds one line of the transactions' file
-//	char line[MAX_CXT_LINE_CHARS];
-//
-//	//holder for one item as a string from the transaction line
-//	char *strItem;
-//
-//	//Transactions count
-//	T_INT transactionsCount;
-//
-//	//Transactions count
-//	T_INT itemsCount;
-//
-//	//Transactions count
-//	T_INT limbCount;
-//
-//	//a reference to an array containing all transactions
-//	Transaction * transactions;
-//
-//	//the currently processed transaction
-//	Transaction * currentTransaction;
-//
-//	T_INT currentTransactionIndex;
-//
-//	T_INT *lineBuffer;
-//
-//	T_INT currentLineItem = 0;
-//
-//	T_INT currentLineItemsIndex;
-//
-//	T_INT *transactionBuffer;
-//
-//	T_INT minLimbIndex;
-//
-//	T_INT maxLimbIndex;
-//
-//	T_INT currentItemLimbIndex;
-//
-//	T_INT currentItemPosition;
-//
-//	T_INT currentLimbValue;
-//
-//	T_INT * currentTransactionBuffer;
-//
-//	//count the number of items found in each transaction
-//	T_INT currTransItemsCnt;
-//
-//	//--------------------------------------------------------------------------
-//	// Processing
-//	//--------------------------------------------------------------------------
-//
-//	//read the transactions file
-//	filePointer = fopen(file, "r");
-//
-//	//exit if there is any problem reading that file
-//	if (filePointer == NULL) {
-//		printf("Error while reading input file !");
-//		exit(EXIT_FAILURE);
-//	}
-//
-//	//setting up the transactions count
-//	transactionsCount = TRANS_MAX_COUNT;
-//
-//	//reading the items count
-//	itemsCount = MAX_CXT_LINE_ITEMS;
-//
-//	transactions = (Transaction *) malloc(
-//			sizeof(Transaction) * transactionsCount);
-//
-//	//initialize the items buffer
-//	lineBuffer = (T_INT *) malloc(sizeof(T_INT) * MAX_CXT_LINE_ITEMS);
-//
-//	limbCount = ((itemsCount - 1) / UINT_BIT_COUNT) + 1;
-//
-//	transactionBuffer = (T_INT *) malloc(sizeof(T_INT) * limbCount);
-//
-//	//initialize the processed transactions count
-//	currentTransactionIndex = 0;
-//
-//	//read the file line by line
-//	while (fgets(line, MAX_CXT_LINE_CHARS, filePointer) != NULL) {
-//
-//		currentTransaction = transactions + currentTransactionIndex;
-//
-//		currentLineItemsIndex = 0;
-//
-//		//Building the transaction from the current line of the file
-//		strItem = strtok(line, " \n");
-//		while (strItem != NULL) {
-//			currentLineItem = strtoul(strItem, NULL, 10);
-//
-//			strItem = strtok(NULL, " \n");
-//			lineBuffer[currentLineItemsIndex] = currentLineItem;
-//			currentLineItemsIndex++;
-//		}
-//
-//		//ensure the items count on this line corresponds to the count indicated
-//		//at the beginning of the file
-//		if (currentLineItem > itemsCount) {
-//			printf("Error at line %d, items count overflow %d > %d !\n",
-//					currentTransactionIndex, currentLineItem, itemsCount);
-//			exit(EXIT_FAILURE);
-//		}
-//
-//		maxLimbIndex = 0;
-//		minLimbIndex = limbCount;
-//		//memset operates at byte level, we need to set a transaction buffer
-//		//made of limbCount UNIT to 0. There is UINT_BYTE_COUNT bytes in each
-//		//UINT => The transaction buffer has UINT_BYTE_COUNT * limbCount bytes
-//		memset(transactionBuffer, 0, sizeof(T_INT) * limbCount);
-//
-//		//initialize the items count for the current transaction
-//		currTransItemsCnt = currentLineItemsIndex;
-//
-//		for (currentLineItemsIndex = 0; currentLineItemsIndex < currTransItemsCnt;
-//				currentLineItemsIndex++) {
-//
-//			currentLineItem = lineBuffer[currentLineItemsIndex];
-//
-//			currentItemLimbIndex = currentLineItem / UINT_BIT_COUNT;
-//			currentItemPosition = currentLineItem % UINT_BIT_COUNT;
-//			currentLimbValue = transactionBuffer[currentItemLimbIndex];
-//			maxLimbIndex = max(maxLimbIndex, currentItemLimbIndex);
-//			minLimbIndex = min(minLimbIndex, currentItemLimbIndex);
-//
-//			currentLimbValue |= 1 << currentItemPosition;
-//			transactionBuffer[currentItemLimbIndex] = currentLimbValue;
-//		}
-//
-//		//the limb count is the last limb index + 1
-//		maxLimbIndex++;
-//
-//		currentTransactionBuffer = currentTransaction->buffer;
-//
-//		memcpy(currentTransactionBuffer, transactionBuffer,
-//				sizeof(T_INT) * maxLimbIndex);
-//
-//		//assembling
-//		currentTransaction->bufferSize = maxLimbIndex;
-//		currentTransaction->firstSignificantLimb = minLimbIndex;
-//		currentTransaction->limbCount = maxLimbIndex;
-//		currentTransaction->itemCount = currTransItemsCnt;
-//
-//		currentTransactionIndex++;
-//	}
-//
-//	//assembling
-//	context->itemsPerLimb = UINT_BIT_COUNT;
-//	context->itemCount = itemsCount;
-//	context->transactionsCount = transactionsCount;
-//	context->encodedTransactions = transactions;
-//
-//	free(transactionBuffer);
-//	free(lineBuffer);
-//
-//	fclose(filePointer);
-//}
-//
-//void loadContextFile(char * file, Transactions *context) {
-//
-//	//--------------------------------------------------------------------------
-//	// Variables declaration
-//	//--------------------------------------------------------------------------
-//
-//	//a pointer to the file holding the transactions' list
-//	FILE *filePointer;
-//
-//	//holds one line of the transactions' file
-//	char line[MAX_CXT_LINE_CHARS];
-//
-//	//holder for one item as a string from the transaction line
-//	char *strItem;
-//
-//	//Transactions count
-//	T_INT transactionsCount;
-//
-//	//Transactions count
-//	T_INT itemsCount;
-//
-//	//Transactions count
-//	T_INT limbCount;
-//
-//	//a reference to an array containing all transactions
-//	Transaction * transactions;
-//
-//	//the currently processed transaction
-//	Transaction * currentTransaction;
-//
-//	T_INT currentTransactionIndex;
-//
-//	T_INT *lineBuffer;
-//
-//	T_INT currentLineItem;
-//
-//	T_INT currentLineItemsIndex;
-//
-//	T_INT *transactionBuffer;
-//
-//	T_INT minLimbIndex;
-//
-//	T_INT maxLimbIndex;
-//
-//	T_INT currentItemLimbIndex;
-//
-//	T_INT currentItemPosition;
-//
-//	T_INT currentLimbValue;
-//
-//	T_INT * currentTransactionBuffer;
-//
-//	//count the number of items found in each transaction
-//	T_INT currTransItemsCnt;
-//
-//	//--------------------------------------------------------------------------
-//	// Processing
-//	//--------------------------------------------------------------------------
-//
-//	//read the transactions file
-//	filePointer = fopen(file, "r");
-//
-//	//exit if there is any problem reading that file
-//	if (filePointer == NULL) {
-//		printf("Error while reading input file !");
-//		exit(EXIT_FAILURE);
-//	}
-//
-//	//reading the transactions count
-//	transactionsCount = 0;
-//
-//	if (fgets(line, MAX_CXT_LINE_CHARS, filePointer) == NULL) {
-//		printf("Error while parsing the transactions count line !\n");
-//		exit(EXIT_FAILURE);
-//	}
-//	strItem = strtok(line, " \n");
-//	if (strItem == NULL) {
-//		printf("Error while reading the transactions count!\n");
-//		exit(EXIT_FAILURE);
-//	}
-//	transactionsCount = strtoul(strItem, NULL, 10);
-//	if (transactionsCount == 0) {
-//		printf("Error while parsing the transactions count !\n");
-//		exit(EXIT_FAILURE);
-//	}
-//
-//	//reading the items count
-//	itemsCount = 0;
-//
-//	if (fgets(line, MAX_CXT_LINE_CHARS, filePointer) == NULL) {
-//		printf("Error while parsing the items count line !\n");
-//		exit(EXIT_FAILURE);
-//	}
-//	strItem = strtok(line, " \n");
-//	if (strItem == NULL) {
-//		printf("Error while reading the items count!\n");
-//		exit(EXIT_FAILURE);
-//	}
-//	itemsCount = strtoul(strItem, NULL, 10);
-//	if (itemsCount == 0) {
-//		printf("Error while parsing the items count !\n");
-//		exit(EXIT_FAILURE);
-//	}
-//
-//	transactions = (Transaction *) malloc(
-//			sizeof(Transaction) * transactionsCount);
-//
-//	//initialize the items buffer
-//	lineBuffer = (T_INT *) malloc(sizeof(T_INT) * MAX_CXT_LINE_ITEMS);
-//
-//	limbCount = ((itemsCount - 1) / UINT_BIT_COUNT) + 1;
-//
-//	transactionBuffer = (T_INT *) malloc(sizeof(T_INT) * limbCount);
-//
-//	//initialize the processed transactions count
-//	currentTransactionIndex = 0;
-//
-//	//read the file line by line
-//	while (fgets(line, MAX_CXT_LINE_CHARS, filePointer) != NULL) {
-//
-//		currentTransaction = transactions + currentTransactionIndex;
-//
-//		currentLineItemsIndex = 0;
-//
-//		//Building the transaction from the current line of the file
-//		strItem = strtok(line, " \n");
-//		while (strItem != NULL) {
-//			currentLineItem = strtoul(strItem, NULL, 10);
-//
-//			//ensure the read value is binary
-//			if ((currentLineItem >> 1) != 0) {
-//				printf("Error expected values = {0,1}, found %d !\n", currentLineItem);
-//				exit(EXIT_FAILURE);
-//			}
-//
-//			strItem = strtok(NULL, " \n");
-//			lineBuffer[currentLineItemsIndex] = currentLineItem;
-//			currentLineItemsIndex++;
-//		}
-//
-//		//ensure the items count on this line corresponds to the count indicated
-//		//at the beginning of the file
-//		if (currentLineItemsIndex != itemsCount) {
-//			printf("Error at line %d, the line items count is incorrect %d != %d !\n",
-//					currentTransactionIndex, currentLineItemsIndex, itemsCount);
-//			exit(EXIT_FAILURE);
-//		}
-//
-//		maxLimbIndex = 0;
-//		minLimbIndex = limbCount;
-//		//memset operates at byte level, we need to set a transaction buffer
-//		//made of limbCount UNIT to 0. There is UINT_BYTE_COUNT bytes in each
-//		//UINT => The transaction buffer has UINT_BYTE_COUNT * limbCount bytes
-//		memset(transactionBuffer, 0, sizeof(T_INT) * limbCount);
-//
-//		//initialize the items count for the current transaction
-//		currTransItemsCnt = 0;
-//
-//		for (currentLineItemsIndex = 0; currentLineItemsIndex < itemsCount;
-//				currentLineItemsIndex++) {
-//			if (lineBuffer[currentLineItemsIndex] == 0) {
-//				continue;
-//			}
-//
-//			currentItemLimbIndex = currentLineItemsIndex / UINT_BIT_COUNT;
-//			currentItemPosition = currentLineItemsIndex % UINT_BIT_COUNT;
-//			currentLimbValue = transactionBuffer[currentItemLimbIndex];
-//			maxLimbIndex = max(maxLimbIndex, currentItemLimbIndex);
-//			minLimbIndex = min(minLimbIndex, currentItemLimbIndex);
-//
-//			currentLimbValue |= 1 << currentItemPosition;
-//			transactionBuffer[currentItemLimbIndex] = currentLimbValue;
-//			currTransItemsCnt++;
-//		}
-//
-//		//the limb count is the last limb index + 1
-//		maxLimbIndex++;
-//
-//		currentTransactionBuffer = currentTransaction->buffer;
-//
-//		memcpy(currentTransactionBuffer, transactionBuffer,
-//				sizeof(T_INT) * maxLimbIndex);
-//
-//		//assembling
-//		currentTransaction->bufferSize = maxLimbIndex;
-//		currentTransaction->firstSignificantLimb = minLimbIndex;
-//		currentTransaction->limbCount = maxLimbIndex;
-//		currentTransaction->itemCount = currTransItemsCnt;
-//
-//		currentTransactionIndex++;
-//	}
-//
-//	//assembling
-//	context->itemsPerLimb = UINT_BIT_COUNT;
-//	context->itemCount = itemsCount;
-//	context->transactionsCount = transactionsCount;
-//	context->encodedTransactions = transactions;
-//
-//	free(transactionBuffer);
-//	free(lineBuffer);
-//
-//	fclose(filePointer);
-//}
 
 void printfConcept(Concept * concept) {
 
