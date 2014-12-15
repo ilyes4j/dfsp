@@ -34,30 +34,11 @@
 #include "stability_processor.h"
 #include "transaction_loader.h"
 
-int main(void) {
+int main(int argc, char *argv[]) {
 
 	//--------------------------------------------------------------------------
 	// Variables declaration
 	//--------------------------------------------------------------------------
-
-	char contextFiles[][50] = { "db/poc_sample_bi.data", "db/lenses_bi.data",
-			"db/post-operative_bi.data", "db/poc_sample_2_bi.data",
-			"db/adult-stretch_bi.data", "db/hayes-roth_bi.data", "db/servo_bi.data",
-			"db/SPECT_test_bi.data", "db/zoo_bi.data", "db/mushroom_bi.data",
-			"db.dat/mushroom.dat", "accidents.dat", "data/chess/chess.dat",
-			"connect.dat", "pumsb.dat", "retail.dat", "T10I4D100K.dat",
-			"T40I10D100K.dat", "mushroom.dat" };
-
-	char conceptFiles[][50] = { "db/poc_concepts_sample_bi.data",
-			"db/lenses_concepts.data", "db/post-operative-concepts.data",
-			"db/poc_sample_2_concepts.data", "db/adult-stretch_concepts.data",
-			"db/hayes-roth_concepts.data", "db/servo_concepts.data",
-			"db/SPECT_test_concepts.data", "db/zoo_concepts.data",
-			"db/mushroom_concepts.data", "db.dat/mushroom_lcm_concepts_1000.dat",
-			"accidents_concepts.dat", "data/chess/chess_concepts.dat",
-			"connect_concepts.dat", "pumsb_concepts.dat", "retail_concepts.dat",
-			"T10I4D100K_concepts.dat", "T40I10D100K_concepts.dat",
-			"mushroom_concepts.dat" };
 
 	//Performance profiling
 	TIMESPEC start, end, diff;
@@ -76,13 +57,15 @@ int main(void) {
 	T_INT conceptCounter;
 	T_INT conceptListCount;
 
-	T_INT selectedDatabase;
 	char * selectedContextFile;
 	char * selectedConceptsFile;
 
 	T_INT exploredNodesCount;
 
+	T_INT approxExploredNodesCount;
+
 	mpz_t currCptNonGenCountGMP;
+	mpz_t currCptNonGenLocalCountGMP;
 	mpz_t currCptGenCountGMP;
 	mpz_t currCptGenLocalCountGMP;
 	mpz_t currCptTotalCountGMP;
@@ -91,17 +74,27 @@ int main(void) {
 	mpf_t fltCurrCptTotalCountGMP;
 	mpf_t fltCurrCptStab;
 
+	//declaration
+	mpz_t mpzTolStep;
+	mpz_t mpzTolRange;
+
+	size_t precision;
+	size_t toConcept;
+	size_t fromConcept;
+
 	//--------------------------------------------------------------------------
 	// Processing
 	//--------------------------------------------------------------------------
+	precision = 2;
+	fromConcept = 0;
+	toConcept = 10;
 
 	transPtr = &trans;
 
-	selectedDatabase = 12;
-	selectedContextFile = contextFiles[selectedDatabase];
-	selectedConceptsFile = conceptFiles[selectedDatabase];
+	selectedContextFile = argv[1];
+	selectedConceptsFile = argv[2];
 
-	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta...\n\n");
+	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta\n\n");
 
 	printf("Using Database %s\n", selectedContextFile);
 	printf("Using Database %s\n", selectedConceptsFile);
@@ -110,7 +103,7 @@ int main(void) {
 
 	loadDATContextFile(selectedContextFile, transPtr);
 
-	printf("Transactions loaded [OK]\n");
+	printf("Transactions loaded\n");
 
 	printf("\nLoading Formal Concepts...\n");
 
@@ -119,25 +112,24 @@ int main(void) {
 	loadLCMConceptsFile(selectedConceptsFile, concepts,
 			transPtr->transactionsCount, transPtr->itemCount);
 
-	printf("Formal Concepts Loaded [OK]\n\n");
+	printf("Formal Concepts Loaded\n\n");
 
 	initTransetPool(transPtr->transactionsCount, transPtr->limbCount);
 
 	printf("Output format :\n");
-	//printf("<Extent,Intent>\n");
-	printf("[Index] [Extent] [visited] [Time] [Stability]\n");
+	printf("[Index] [Extent] [visited] [approx] [Time] [status] [Stability]\n");
 
-	printf("\nProcessing concepts...\n");
+	printf("\nProcessing concepts...\n\n");
 
 	conceptList = concepts->concepts;
 	conceptListCount = concepts->count;
 
-	//	for (conceptCounter = 0; conceptCounter < conceptListCount;
-	//			conceptCounter++) {
+	toConcept = min_szt(toConcept, conceptListCount);
 
-	for (conceptCounter = 0;
-			conceptCounter < 20 && conceptCounter < conceptListCount;
+	for (conceptCounter = fromConcept; conceptCounter < toConcept;
 			conceptCounter++) {
+
+		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
 		currentConcept = conceptList + conceptCounter;
 		currCptItemsCnt = currentConcept->itemsCount;
@@ -148,6 +140,7 @@ int main(void) {
 		//By allocating the maximum amount from the beginning we will prevent
 		//on the fly memory reallocation which may cause performance overhead
 		mpz_init2(currCptNonGenCountGMP, currCptTransCnt);
+		mpz_init2(currCptNonGenLocalCountGMP, currCptTransCnt);
 		mpz_init2(currCptGenCountGMP, currCptTransCnt);
 		mpz_init2(currCptGenLocalCountGMP, currCptTransCnt);
 
@@ -157,18 +150,28 @@ int main(void) {
 		//obtained efficiently by setting the currCptTransCnt bit
 		mpz_setbit(currCptTotalCountGMP, currCptTransCnt);
 
-		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+		//build the tolerance range
+		findRange(&mpzTolRange, &mpzTolStep, precision, currCptTransCnt);
+
+		//Total - range
+		mpz_sub(mpzTolRange, currCptTotalCountGMP, mpzTolRange);
+
+		//empty set counted as a non generator
+		mpz_set_ui(currCptNonGenCountGMP, 1);
+		mpz_sub_ui(mpzTolRange, mpzTolRange, 1);
 
 		root = initialize(currentConcept->transactions, currCptTransCnt,
-				&currCptGenCountGMP, &currCptGenLocalCountGMP, transPtr,
+				&currCptGenCountGMP, &currCptGenLocalCountGMP, &mpzTolRange, transPtr,
 				currCptItemsCnt);
 
 		if (root->childrenCount > 1) {
 			processRecursive(root, &currCptGenCountGMP, &currCptGenLocalCountGMP,
+					&currCptNonGenCountGMP, &currCptNonGenLocalCountGMP, &mpzTolRange,
 					transPtr, currCptItemsCnt);
 		}
 
 		exploredNodesCount = getExploredNodesCount();
+		approxExploredNodesCount = getApproxExploredNodesCount();
 
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
 		diff = diffTime(start, end);
@@ -185,15 +188,23 @@ int main(void) {
 			mpf_set_z(fltCurrCptTotalCountGMP, currCptTotalCountGMP);
 			mpf_div(fltCurrCptStab, fltCurrCptGenCountGMP, fltCurrCptTotalCountGMP);
 
-			gmp_printf("%4u; %6u; %10u; %3ld,%-5ld; %.5Ff\n", conceptCounter,
-					currCptTransCnt, exploredNodesCount, diff.tv_sec,
+			mpz_add(currCptTotalCountGMP, currCptGenCountGMP, currCptNonGenCountGMP);
+
+			gmp_printf("%4u; %6u; %10u; %10u; %.2f; %3ld,%-5ld; %.5Ff\n",
+					conceptCounter, currCptTransCnt, exploredNodesCount,
+					approxExploredNodesCount,
+					(double) approxExploredNodesCount / exploredNodesCount, diff.tv_sec,
 					diff.tv_nsec / 10000, fltCurrCptStab);
+			//gmp_printf("%Zd\n", currCptGenCountGMP);
+			//gmp_printf("%Zd\n", currCptNonGenCountGMP);
+			//gmp_printf("%Zd\n\n", currCptTotalCountGMP);
 		}
 
 		pushTranset(root->alloc);
 		free(root);
 
 		mpz_clear(currCptNonGenCountGMP);
+		mpz_clear(currCptNonGenLocalCountGMP);
 		mpz_clear(currCptTotalCountGMP);
 		mpz_clear(currCptGenCountGMP);
 		mpz_clear(currCptGenLocalCountGMP);
@@ -201,6 +212,9 @@ int main(void) {
 		mpf_clear(fltCurrCptGenCountGMP);
 		mpf_clear(fltCurrCptTotalCountGMP);
 		mpf_clear(fltCurrCptStab);
+
+		mpz_clear(mpzTolStep);
+		mpz_clear(mpzTolRange);
 	}
 
 	freeTransetRepo(transPtr->transactionsCount);
@@ -210,7 +224,7 @@ int main(void) {
 	free(transPtr->transBuffArea);
 	free(transPtr->encodedTransactions);
 
-	printf("Concepts Processed [OK]\n");
+	printf("\nAll Concepts Processed [OK]\n");
 
 	return EXIT_SUCCESS;
 }

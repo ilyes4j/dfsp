@@ -36,14 +36,39 @@
 
 T_INT nodeCount;
 
+T_INT approxCount;
+
+T_INT doneApprox;
+
 extern Transactionset ** srcPtrs;
 extern Transactionset ** transPtrs;
 
 extern Transaction backupInter;
 extern Transaction leadInter;
 
-T_INT getExploredNodesCount(){
+void findRange(mpz_t * mpzTolRange, mpz_t * mpzTolStep, size_t tolerance,
+		size_t extentSize) {
+
+	//processing
+	mpz_init2(*mpzTolStep, sizeof(T_INT));
+	mpz_ui_pow_ui(*mpzTolStep, 10, tolerance);
+
+	mpz_init2(*mpzTolRange, extentSize);
+	mpz_setbit(*mpzTolRange, extentSize);
+
+	mpz_fdiv_q(*mpzTolRange, *mpzTolRange, *mpzTolStep);
+}
+
+T_INT getExploredNodesCount() {
 	return nodeCount;
+}
+
+T_INT getApproxExploredNodesCount() {
+	return approxCount;
+}
+
+T_INT hasDoneApprox() {
+	return doneApprox;
 }
 
 //Build the root Transactionset. The root Transactionset contains an array of
@@ -52,7 +77,7 @@ T_INT getExploredNodesCount(){
 //flagged as a generator or a non generator. A generator is flagged as forbidden
 //and will later be ignored from the exploration process
 Transactionset * initialize(T_INT *items, T_INT itemsCount,
-		mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP,
+		mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, mpz_t * rangeCountGMP,
 		Transactions * transactions, T_INT refCount) {
 
 	AllocTranset * alloc;
@@ -143,12 +168,18 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 	}
 	mpz_add(*genTotalCountGMP, *genTotalCountGMP, *genLocalCountGMP);
 
+	//initialize approximation to not yet found
+	doneApprox = 0;
+
+	//update the window guard
+	mpz_sub(*rangeCountGMP, *rangeCountGMP, *genLocalCountGMP);
+
 	return ret;
 }
 
 //Build the resulting intersection between Transaction * result and
 //Transaction * operand and store the result in Transaction * result
-void buildIntersection2(Transaction * result, Transaction * left,
+void buildIntersection(Transaction * result, Transaction * left,
 		Transaction * right) {
 
 	T_INT intersectCount;
@@ -156,8 +187,8 @@ void buildIntersection2(Transaction * result, Transaction * left,
 	T_INT resLimbCount;
 	T_INT *leftBuffer, *rightBuffer, *resBuffer;
 
-	res1stSigLimb = max(left->firstSignificantLimb, right->firstSignificantLimb);
-	resLimbCount = min(left->limbCount, right->limbCount);
+	res1stSigLimb = max_ui(left->firstSignificantLimb, right->firstSignificantLimb);
+	resLimbCount = min_ui(left->limbCount, right->limbCount);
 
 	leftBuffer = left->buffer;
 	rightBuffer = right->buffer;
@@ -182,7 +213,9 @@ void buildIntersection2(Transaction * result, Transaction * left,
 //immediate children. Each child is then checked to determine whether it is a
 //generator. This function is then called recursively to process each child.
 void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
-		mpz_t *genLocalCountGMP, Transactions * transactions, T_INT refCount) {
+		mpz_t *genLocalCountGMP, mpz_t * nongenTotalCountGMP,
+		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
+		Transactions * transactions, T_INT refCount) {
 
 	T_INT startIdx;
 
@@ -238,11 +271,11 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	//loop through the first currentCount - 1 elements and cross them against
 	//the following elements to form the elements children, forbidden elemnts
 	//should be excluded
-	//exclude forbidden elemnts
+	//exclude forbidden elements
 	k = currentCount - 1;
 
-	//all elemnts from this level have the same items count which can be
-	//retreived from the first element
+	//all elements from this level have the same items count which can be
+	//Retrieved from the first element
 
 	startIdx = 0;
 	endIdx = currentCount - 1;
@@ -276,7 +309,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		srcTranset = srcPtrs[counter];
 		//srcTranset = currentChildren + counter;
 
-		buildIntersection2(leadInterPtr, backupInterPtr,
+		buildIntersection(leadInterPtr, backupInterPtr,
 				transactions->encodedTransactions + srcTranset->transactions);
 
 		if (leadInterPtr->itemCount == refCount) {
@@ -295,19 +328,38 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		}
 	}
 
+	//GMP negative counting
+	//counting all non generators and their supersets
+	//TODO use limb direct access to fill whole limbs with ones using a single
+	//operation
+	mpz_set_ui(*nongenLocalCountGMP, 0);
+	mpz_setbit(*nongenLocalCountGMP, currentCount - startIdx);
+	mpz_sub_ui(*nongenLocalCountGMP, *nongenLocalCountGMP, 1);
+	mpz_add(*nongenTotalCountGMP, *nongenTotalCountGMP, *nongenLocalCountGMP);
+	mpz_add_ui(*nongenTotalCountGMP, *nongenTotalCountGMP, startIdx);
+
+	if (doneApprox == 0) {
+		mpz_sub(*rangeCountGMP, *rangeCountGMP, *nongenLocalCountGMP);
+		mpz_sub_ui(*rangeCountGMP, *rangeCountGMP, startIdx);
+		if ( mpz_sgn(*rangeCountGMP) == -1) {
+			approxCount = nodeCount;
+			doneApprox = 1;
+		}
+	}
+
 	//crossing session level
 	for (i = 0; i < startIdx; i++) {
 
 		//retrieve the current crossing element
 		leftElement = transPtrs[i];
 
-		//left side of the crossing elemnts count
+		//left side of the crossing elements count
 		leftEltPotChildrenCnt = currentCount - i - 1;
 
 		alloc = popTranset();
 		leftEltChildren = alloc->transet;
 
-		//retreive the prefix of the next generation from the elements in the
+		//Retrieve the prefix of the next generation from the elements in the
 		//current
 		leftEltIntersect = &(leftElement->intersect);
 
@@ -324,7 +376,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 
 			variationValue = rightElement->transactions;
 
-			buildIntersection2(leftEltCurChildIntersect, leftEltIntersect,
+			buildIntersection(leftEltCurChildIntersect, leftEltIntersect,
 					transactions->encodedTransactions + variationValue);
 
 			if (leftEltCurChildIntersect->itemCount == refCount) {
@@ -354,9 +406,31 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		}
 		mpz_add(*genTotalCountGMP, *genTotalCountGMP, *genLocalCountGMP);
 
-		if (nonGenCurrCnt > 1 && nodeCount < NODE_COUNT_THRESHOLD) {
-			processRecursive(leftElement, genTotalCountGMP, genLocalCountGMP,
-					transactions, refCount);
+		if (doneApprox == 0) {
+			mpz_sub(*rangeCountGMP, *rangeCountGMP, *genLocalCountGMP);
+			if ( mpz_sgn(*rangeCountGMP) == -1) {
+				approxCount = nodeCount;
+				doneApprox = 1;
+			}
+		}
+
+		if (nodeCount < NODE_COUNT_THRESHOLD) {
+			if (nonGenCurrCnt > 1) {
+				processRecursive(leftElement, genTotalCountGMP, genLocalCountGMP,
+						nongenTotalCountGMP, nongenLocalCountGMP, rangeCountGMP,
+						transactions, refCount);
+			} else if (nonGenCurrCnt == 1) {
+				mpz_add_ui(*nongenLocalCountGMP, *nongenLocalCountGMP, 1);
+				mpz_add_ui(*nongenTotalCountGMP, *nongenTotalCountGMP, 1);
+
+				if (doneApprox == 0) {
+					mpz_sub_ui(*rangeCountGMP, *rangeCountGMP, 1);
+					if ( mpz_sgn(*rangeCountGMP) == -1) {
+						approxCount = nodeCount;
+						doneApprox = 1;
+					}
+				}
+			}
 		}
 
 		pushTranset(leftElement->alloc);
@@ -364,7 +438,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 }
 
 //Debug-only function
-//Count all nodes in a Tranasctionset recursively
+//Count all nodes in a Transactionset recursively
 T_INT elementsCount(Transactionset * root) {
 
 	Transactionset * children;

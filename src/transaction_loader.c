@@ -69,11 +69,19 @@ TIMESPEC sumTime(TIMESPEC start, TIMESPEC end) {
 	return temp;
 }
 
-int max(int a, int b) {
+size_t max_szt(size_t a, size_t b) {
 	return a > b ? a : b;
 }
 
-int min(int a, int b) {
+size_t min_szt(size_t a, size_t b) {
+	return a > b ? b : a;
+}
+
+T_INT max_ui(T_INT a, T_INT b) {
+	return a > b ? a : b;
+}
+
+T_INT min_ui(T_INT a, T_INT b) {
 	return a > b ? b : a;
 }
 
@@ -96,7 +104,7 @@ void getConceptsFileParams(FILE *filePointer, size_t * linesCountPtr,
 	while ((read = getline(&line, &len, filePointer)) != -1) {
 
 		lineCount++;
-		lineSize = max(read, lineSize);
+		lineSize = max_szt(read, lineSize);
 	}
 
 	//add extra room for the null termination char
@@ -290,7 +298,7 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 
 		maxTransCount++;
 
-		maxlineSize = max(read, maxlineSize);
+		maxlineSize = max_szt(read, maxlineSize);
 		read--;
 
 		if (line[read] == '\n') {
@@ -315,7 +323,7 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 
 		currentLineItemsCount = strtoul(line + startIndex, NULL, 10);
 
-		maxItemsCount = max(maxItemsCount, currentLineItemsCount);
+		maxItemsCount = max_ui(maxItemsCount, currentLineItemsCount);
 	}
 
 	//add extra room for the null termination char
@@ -468,8 +476,8 @@ void loadDATContextFile(char * file, Transactions *context) {
 			currentItemLimbIndex = currentLineItem / UINT_BIT_COUNT;
 			currentItemPosition = currentLineItem % UINT_BIT_COUNT;
 			currentLimbValue = transactionBuffer[currentItemLimbIndex];
-			maxLimbIndex = max(maxLimbIndex, currentItemLimbIndex);
-			minLimbIndex = min(minLimbIndex, currentItemLimbIndex);
+			maxLimbIndex = max_ui(maxLimbIndex, currentItemLimbIndex);
+			minLimbIndex = min_ui(minLimbIndex, currentItemLimbIndex);
 
 			currentLimbValue |= 1 << currentItemPosition;
 			transactionBuffer[currentItemLimbIndex] = currentLimbValue;

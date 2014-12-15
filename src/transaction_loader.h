@@ -53,12 +53,13 @@ typedef unsigned int T_INT;
 //------------------------------------------------------------------------------
 //Functions declarations
 //------------------------------------------------------------------------------
-int max(int a, int b);
+T_INT max_ui(T_INT a, T_INT b);
+T_INT min_ui(T_INT a, T_INT b);
 
-int min(int a, int b);
+size_t max_szt(size_t a, size_t b);
+size_t min_szt(size_t a, size_t b);
 
 TIMESPEC diffTime(TIMESPEC start, TIMESPEC end);
-
 TIMESPEC sumTime(TIMESPEC start, TIMESPEC end);
 
 struct transaction {

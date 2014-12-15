@@ -33,15 +33,22 @@
 
 #include "transaction_loader.h"
 
-Transactionset * initialize(T_INT *items, T_INT itemsCount, mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, Transactions * transactions, T_INT refCount);
+Transactionset * initialize(T_INT *items, T_INT itemsCount,
+		mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, mpz_t * rangeCountGMP,
+		Transactions * transactions, T_INT refCount);
 
-void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, Transactions * transactions, T_INT refCount);
+void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP,
+		mpz_t * genLocalCountGMP, mpz_t * nongenTotalCountGMP,
+		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
+		Transactions * transactions, T_INT refCount);
 
 T_INT elementsCount(Transactionset * root);
 
 T_INT nonForbiddenElementsCount(Transactionset * root);
 
 T_INT getExploredNodesCount();
+
+T_INT getApproxExploredNodesCount();
 
 void displayElements(Transactionset * root);
 
@@ -54,5 +61,10 @@ int compareTransetPtrByCardAsc(const void * a, const void * b);
 int compareTransetPtrByCardDesc(const void * a, const void * b);
 
 int compareConceptByProc(const void * a, const void * b);
+
+void findRange(mpz_t * mpzTolRange, mpz_t * mpzTolStep, size_t tolerance,
+		size_t extentSize);
+
+T_INT hasDoneApprox();
 
 #endif
