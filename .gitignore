@@ -21,3 +21,6 @@ libs/**
 
 # datasets
 data/**
+
+#eclipse settings
+.settings

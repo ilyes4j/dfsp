@@ -29,7 +29,7 @@ all: dfsp
 dfsp: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc -L"/home/ilyes/softdev/installed_soft/git/git_repositories/dfsp_main_working_repo/libs/gmp/.libs" -o "dfsp" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L"../libs/gmp/.libs" -o "dfsp" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
