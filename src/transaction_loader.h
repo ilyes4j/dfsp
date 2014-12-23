@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <time.h>
 #include <gmp.h>
+#include <stdio.h>
 
 //initialize the unsigned int buffer bit count
 #define UINT_BIT_COUNT (sizeof(T_INT) * CHAR_BIT)
@@ -53,11 +54,8 @@ typedef unsigned int T_INT;
 //------------------------------------------------------------------------------
 //Functions declarations
 //------------------------------------------------------------------------------
-T_INT max_ui(T_INT a, T_INT b);
-T_INT min_ui(T_INT a, T_INT b);
-
-size_t max_szt(size_t a, size_t b);
-size_t min_szt(size_t a, size_t b);
+ssize_t max_sszt(ssize_t a, ssize_t b);
+ssize_t min_sszt(ssize_t a, ssize_t b);
 
 TIMESPEC diffTime(TIMESPEC start, TIMESPEC end);
 TIMESPEC sumTime(TIMESPEC start, TIMESPEC end);

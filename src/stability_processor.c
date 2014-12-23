@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 T_INT nodeCount;
 
@@ -40,23 +41,124 @@ T_INT approxCount;
 
 T_INT doneApprox;
 
+T_INT crossedUpperThreshold;
+
 extern Transactionset ** srcPtrs;
 extern Transactionset ** transPtrs;
 
 extern Transaction backupInter;
 extern Transaction leadInter;
 
-void findRange(mpz_t * mpzTolRange, mpz_t * mpzTolStep, size_t tolerance,
+T_INT digitsCount(T_INT value) {
+
+	//less than 2 digits
+	if (value < 10)
+		return 1;
+
+	//less than 3 digits
+	if (value < 100)
+		return 2;
+
+	//less than 4 digits
+	if (value < 1000)
+		return 3;
+
+	//less than 5 digits
+	if (value < 10000)
+		return 4;
+
+	//less than 6 digits
+	if (value < 100000)
+		return 5;
+
+	//less than 7 digits
+	if (value < 1000000)
+		return 6;
+
+	//less than 8 digits
+	if (value < 10000000)
+		return 7;
+
+	//less than 9 digits
+	if (value < 100000000)
+		return 8;
+
+	if (value < 1000000000)
+		return 9;
+
+	return 10;
+}
+
+void findThreshold(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
+		T_INT threshold, T_INT extentSize) {
+
+	mpz_init2(*mpzReverseUpperThreshold, extentSize);
+	mpz_setbit(*mpzReverseUpperThreshold, extentSize);
+
+	mpz_init2(*mpzThreshold, extentSize + sizeof(T_INT));
+	mpz_setbit(*mpzThreshold, extentSize);
+
+	mpz_mul_ui(*mpzThreshold, *mpzThreshold, threshold);
+	mpz_fdiv_q_ui(*mpzThreshold, *mpzThreshold, pow(10, digitsCount(threshold)));
+
+	mpz_sub(*mpzThreshold, *mpzReverseUpperThreshold, *mpzThreshold);
+}
+
+void findThresholdDebug(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
+		T_INT threshold, T_INT extentSize) {
+
+	//////////////////////////////////////////////////////////////////////////////
+	//debug
+	//////////////////////////////////////////////////////////////////////////////
+	mpf_t mpfThreshold;
+	mpf_t mpfTotal;
+	mpf_init2(mpfThreshold, 1000);
+	mpf_init2(mpfTotal, 1000);
+	//////////////////////////////////////////////////////////////////////////////
+	//end debug
+	//////////////////////////////////////////////////////////////////////////////
+
+	mpz_init2(*mpzReverseUpperThreshold, extentSize);
+	mpz_setbit(*mpzReverseUpperThreshold, extentSize);
+
+	mpz_init2(*mpzThreshold, extentSize + sizeof(T_INT));
+	mpz_setbit(*mpzThreshold, extentSize);
+
+	mpz_mul_ui(*mpzThreshold, *mpzThreshold, threshold);
+	mpz_fdiv_q_ui(*mpzThreshold, *mpzThreshold, pow(10, digitsCount(threshold)));
+
+	//////////////////////////////////////////////////////////////////////////////
+	//debug
+	//////////////////////////////////////////////////////////////////////////////
+	mpf_set_z(mpfThreshold, *mpzThreshold);
+	mpf_set_z(mpfTotal, *mpzReverseUpperThreshold);
+	mpf_div(mpfThreshold, mpfThreshold, mpfTotal);
+	gmp_printf("%Ff\n", mpfThreshold);
+	//////////////////////////////////////////////////////////////////////////////
+	//end debug
+	//////////////////////////////////////////////////////////////////////////////
+
+	mpz_sub(*mpzThreshold, *mpzReverseUpperThreshold, *mpzThreshold);
+
+	//////////////////////////////////////////////////////////////////////////////
+	//debug
+	//////////////////////////////////////////////////////////////////////////////
+	mpf_clear(mpfThreshold);
+	mpf_clear(mpfTotal);
+	//////////////////////////////////////////////////////////////////////////////
+	//end debug
+	//////////////////////////////////////////////////////////////////////////////
+
+}
+
+void findToleranceRange(mpz_t * mpzTolRange, size_t tolerance,
 		size_t extentSize) {
 
 	//processing
-	mpz_init2(*mpzTolStep, sizeof(T_INT));
-	mpz_ui_pow_ui(*mpzTolStep, 10, tolerance);
-
 	mpz_init2(*mpzTolRange, extentSize);
 	mpz_setbit(*mpzTolRange, extentSize);
 
-	mpz_fdiv_q(*mpzTolRange, *mpzTolRange, *mpzTolStep);
+	mpz_fdiv_q_ui(*mpzTolRange, *mpzTolRange, pow(10, tolerance));
 }
 
 T_INT getExploredNodesCount() {
@@ -69,6 +171,10 @@ T_INT getApproxExploredNodesCount() {
 
 T_INT hasDoneApprox() {
 	return doneApprox;
+}
+
+T_INT hasCrossedThreshold() {
+	return crossedUpperThreshold;
 }
 
 //Build the root Transactionset. The root Transactionset contains an array of
@@ -170,6 +276,7 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 
 	//initialize approximation to not yet found
 	doneApprox = 0;
+	crossedUpperThreshold = 0;
 
 	//update the window guard
 	mpz_sub(*rangeCountGMP, *rangeCountGMP, *genLocalCountGMP);
@@ -187,8 +294,9 @@ void buildIntersection(Transaction * result, Transaction * left,
 	T_INT resLimbCount;
 	T_INT *leftBuffer, *rightBuffer, *resBuffer;
 
-	res1stSigLimb = max_ui(left->firstSignificantLimb, right->firstSignificantLimb);
-	resLimbCount = min_ui(left->limbCount, right->limbCount);
+	res1stSigLimb = max_sszt(left->firstSignificantLimb,
+			right->firstSignificantLimb);
+	resLimbCount = min_sszt(left->limbCount, right->limbCount);
 
 	leftBuffer = left->buffer;
 	rightBuffer = right->buffer;
@@ -215,7 +323,7 @@ void buildIntersection(Transaction * result, Transaction * left,
 void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		mpz_t *genLocalCountGMP, mpz_t * nongenTotalCountGMP,
 		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
-		Transactions * transactions, T_INT refCount) {
+		mpz_t * mpzUpperThreshold, Transactions * transactions, T_INT refCount) {
 
 	T_INT startIdx;
 
@@ -338,7 +446,16 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	mpz_add(*nongenTotalCountGMP, *nongenTotalCountGMP, *nongenLocalCountGMP);
 	mpz_add_ui(*nongenTotalCountGMP, *nongenTotalCountGMP, startIdx);
 
-	if (doneApprox == 0) {
+	if ((crossedUpperThreshold == 0)
+			&& (mpz_cmp(*mpzUpperThreshold, *nongenTotalCountGMP) < 0)) {
+		approxCount = nodeCount;
+		crossedUpperThreshold = 1;
+
+		//gmp_printf("%Zd\n", *nongenTotalCountGMP);
+		//gmp_printf("%Zd\n", *mpzUpperThreshold);
+	}
+
+	if (doneApprox == 0 && crossedUpperThreshold == 0) {
 		mpz_sub(*rangeCountGMP, *rangeCountGMP, *nongenLocalCountGMP);
 		mpz_sub_ui(*rangeCountGMP, *rangeCountGMP, startIdx);
 		if ( mpz_sgn(*rangeCountGMP) == -1) {
@@ -406,7 +523,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		}
 		mpz_add(*genTotalCountGMP, *genTotalCountGMP, *genLocalCountGMP);
 
-		if (doneApprox == 0) {
+		if (doneApprox == 0 && crossedUpperThreshold == 0) {
 			mpz_sub(*rangeCountGMP, *rangeCountGMP, *genLocalCountGMP);
 			if ( mpz_sgn(*rangeCountGMP) == -1) {
 				approxCount = nodeCount;
@@ -418,12 +535,12 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 			if (nonGenCurrCnt > 1) {
 				processRecursive(leftElement, genTotalCountGMP, genLocalCountGMP,
 						nongenTotalCountGMP, nongenLocalCountGMP, rangeCountGMP,
-						transactions, refCount);
+						mpzUpperThreshold, transactions, refCount);
 			} else if (nonGenCurrCnt == 1) {
 				mpz_add_ui(*nongenLocalCountGMP, *nongenLocalCountGMP, 1);
 				mpz_add_ui(*nongenTotalCountGMP, *nongenTotalCountGMP, 1);
 
-				if (doneApprox == 0) {
+				if (doneApprox == 0 && crossedUpperThreshold == 0) {
 					mpz_sub_ui(*rangeCountGMP, *rangeCountGMP, 1);
 					if ( mpz_sgn(*rangeCountGMP) == -1) {
 						approxCount = nodeCount;

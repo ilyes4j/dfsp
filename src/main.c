@@ -61,7 +61,6 @@ int main(int argc, char *argv[]) {
 	char * selectedConceptsFile;
 
 	T_INT exploredNodesCount;
-
 	T_INT approxExploredNodesCount;
 
 	mpz_t currCptNonGenCountGMP;
@@ -74,25 +73,29 @@ int main(int argc, char *argv[]) {
 	mpf_t fltCurrCptTotalCountGMP;
 	mpf_t fltCurrCptStab;
 
-	//declaration
-	mpz_t mpzTolStep;
 	mpz_t mpzTolRange;
+	mpz_t mpzUpperThreshold;
+	mpz_t mpzReverseUpperThreshold;
 
 	size_t precision;
-	size_t toConcept;
-	size_t fromConcept;
+
+	ssize_t toConcept;
+	ssize_t fromConcept;
+
+	T_INT upperThreshold;
 
 	//--------------------------------------------------------------------------
 	// Processing
 	//--------------------------------------------------------------------------
-	precision = 2;
-	fromConcept = 0;
-	toConcept = 10;
-
 	transPtr = &trans;
 
 	selectedContextFile = argv[1];
 	selectedConceptsFile = argv[2];
+	fromConcept = strtol(argv[3], NULL, 10);
+	toConcept = strtol(argv[4], NULL, 10);
+	upperThreshold = strtoul(argv[5], NULL, 10);
+
+	precision = digitsCount(upperThreshold);
 
 	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta\n\n");
 
@@ -117,14 +120,28 @@ int main(int argc, char *argv[]) {
 	initTransetPool(transPtr->transactionsCount, transPtr->limbCount);
 
 	printf("Output format :\n");
-	printf("[Index] [Extent] [visited] [approx] [Time] [status] [Stability]\n");
-
-	printf("\nProcessing concepts...\n\n");
+	printf("[Index][Extent][visited][approx][gain][Time][Stability][Done]\n\n");
 
 	conceptList = concepts->concepts;
 	conceptListCount = concepts->count;
 
-	toConcept = min_szt(toConcept, conceptListCount);
+	//if negative value it is considered an offset to the concept count
+	toConcept = toConcept > 0 ? toConcept : conceptListCount + toConcept;
+	//if negative value is way too big set it to end of the list
+	toConcept = toConcept > 0 ? toConcept : conceptListCount;
+	//if positive value out of bounds set to end of the list
+	toConcept = toConcept > conceptListCount ? conceptListCount : toConcept;
+
+	//if negative value it is considered an offset to the concept count
+	fromConcept = fromConcept > 0 ? fromConcept : conceptListCount + fromConcept;
+	//if negative value is way too big set to start of the list
+	fromConcept = fromConcept > 0 ? fromConcept : 0;
+	//if positive value out of bounds set to start of the list
+	fromConcept = fromConcept < toConcept ? fromConcept : 0;
+
+	printf("Found %u concepts available...\n", conceptListCount);
+	printf("Processing concepts [%zd..%zd]...\n\n", fromConcept, toConcept - 1);
+	printf("Ignore concepts under 0.%u threshold\n\n", upperThreshold);
 
 	for (conceptCounter = fromConcept; conceptCounter < toConcept;
 			conceptCounter++) {
@@ -150,8 +167,11 @@ int main(int argc, char *argv[]) {
 		//obtained efficiently by setting the currCptTransCnt bit
 		mpz_setbit(currCptTotalCountGMP, currCptTransCnt);
 
+		findThreshold(&mpzUpperThreshold, &mpzReverseUpperThreshold, upperThreshold,
+				currCptTransCnt);
+
 		//build the tolerance range
-		findRange(&mpzTolRange, &mpzTolStep, precision, currCptTransCnt);
+		findToleranceRange(&mpzTolRange, precision, currCptTransCnt);
 
 		//Total - range
 		mpz_sub(mpzTolRange, currCptTotalCountGMP, mpzTolRange);
@@ -167,7 +187,7 @@ int main(int argc, char *argv[]) {
 		if (root->childrenCount > 1) {
 			processRecursive(root, &currCptGenCountGMP, &currCptGenLocalCountGMP,
 					&currCptNonGenCountGMP, &currCptNonGenLocalCountGMP, &mpzTolRange,
-					transPtr, currCptItemsCnt);
+					&mpzUpperThreshold, transPtr, currCptItemsCnt);
 		}
 
 		exploredNodesCount = getExploredNodesCount();
@@ -190,11 +210,12 @@ int main(int argc, char *argv[]) {
 
 			mpz_add(currCptTotalCountGMP, currCptGenCountGMP, currCptNonGenCountGMP);
 
-			gmp_printf("%4u; %6u; %10u; %10u; %.2f; %3ld,%-5ld; %.5Ff\n",
+			gmp_printf("%4u; %6u; %10u; %10u; %.2f; %3ld,%-5ld; %.5Ff; %3s\n",
 					conceptCounter, currCptTransCnt, exploredNodesCount,
 					approxExploredNodesCount,
 					(double) approxExploredNodesCount / exploredNodesCount, diff.tv_sec,
-					diff.tv_nsec / 10000, fltCurrCptStab);
+					diff.tv_nsec / 10000, fltCurrCptStab,
+					hasCrossedThreshold() == 0 ? "YES" : "NO");
 			//gmp_printf("%Zd\n", currCptGenCountGMP);
 			//gmp_printf("%Zd\n", currCptNonGenCountGMP);
 			//gmp_printf("%Zd\n\n", currCptTotalCountGMP);
@@ -213,8 +234,9 @@ int main(int argc, char *argv[]) {
 		mpf_clear(fltCurrCptTotalCountGMP);
 		mpf_clear(fltCurrCptStab);
 
-		mpz_clear(mpzTolStep);
 		mpz_clear(mpzTolRange);
+		mpz_clear(mpzUpperThreshold);
+		mpz_clear(mpzReverseUpperThreshold);
 	}
 
 	freeTransetRepo(transPtr->transactionsCount);

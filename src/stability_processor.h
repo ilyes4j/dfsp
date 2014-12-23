@@ -40,7 +40,7 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP,
 		mpz_t * genLocalCountGMP, mpz_t * nongenTotalCountGMP,
 		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
-		Transactions * transactions, T_INT refCount);
+		mpz_t * mpzUpperThreshold, Transactions * transactions, T_INT refCount);
 
 T_INT elementsCount(Transactionset * root);
 
@@ -62,9 +62,16 @@ int compareTransetPtrByCardDesc(const void * a, const void * b);
 
 int compareConceptByProc(const void * a, const void * b);
 
-void findRange(mpz_t * mpzTolRange, mpz_t * mpzTolStep, size_t tolerance,
+void findToleranceRange(mpz_t * mpzTolRange, size_t tolerance,
 		size_t extentSize);
 
+void findThreshold(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
+		T_INT threshold, T_INT extentSize);
+
 T_INT hasDoneApprox();
+
+T_INT hasCrossedThreshold();
+
+T_INT digitsCount(T_INT value);
 
 #endif

@@ -69,19 +69,11 @@ TIMESPEC sumTime(TIMESPEC start, TIMESPEC end) {
 	return temp;
 }
 
-size_t max_szt(size_t a, size_t b) {
+ssize_t max_sszt(ssize_t a, ssize_t b) {
 	return a > b ? a : b;
 }
 
-size_t min_szt(size_t a, size_t b) {
-	return a > b ? b : a;
-}
-
-T_INT max_ui(T_INT a, T_INT b) {
-	return a > b ? a : b;
-}
-
-T_INT min_ui(T_INT a, T_INT b) {
+ssize_t min_sszt(ssize_t a, ssize_t b) {
 	return a > b ? b : a;
 }
 
@@ -91,12 +83,10 @@ void getConceptsFileParams(FILE *filePointer, size_t * linesCountPtr,
 	char *line;
 
 	size_t len = 0;
-
-	size_t lineSize = 0;
-
 	size_t lineCount = 0;
 
 	ssize_t read;
+	ssize_t lineSize = 0;
 
 	//processing
 	line = NULL;
@@ -104,7 +94,7 @@ void getConceptsFileParams(FILE *filePointer, size_t * linesCountPtr,
 	while ((read = getline(&line, &len, filePointer)) != -1) {
 
 		lineCount++;
-		lineSize = max_szt(read, lineSize);
+		lineSize = max_sszt(read, lineSize);
 	}
 
 	//add extra room for the null termination char
@@ -274,8 +264,6 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 
 	size_t len = 0;
 
-	size_t maxlineSize = 0;
-
 	size_t maxItemsCount = 0;
 
 	size_t maxTransCount = 0;
@@ -283,6 +271,7 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 	size_t startIndex;
 
 	ssize_t read;
+	ssize_t maxlineSize = 0;
 
 	unsigned long currentLineItemsCount;
 
@@ -298,7 +287,7 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 
 		maxTransCount++;
 
-		maxlineSize = max_szt(read, maxlineSize);
+		maxlineSize = max_sszt(read, maxlineSize);
 		read--;
 
 		if (line[read] == '\n') {
@@ -323,7 +312,7 @@ void getContextFileParams(FILE *filePointer, size_t * transCount,
 
 		currentLineItemsCount = strtoul(line + startIndex, NULL, 10);
 
-		maxItemsCount = max_ui(maxItemsCount, currentLineItemsCount);
+		maxItemsCount = max_sszt(maxItemsCount, currentLineItemsCount);
 	}
 
 	//add extra room for the null termination char
@@ -476,8 +465,8 @@ void loadDATContextFile(char * file, Transactions *context) {
 			currentItemLimbIndex = currentLineItem / UINT_BIT_COUNT;
 			currentItemPosition = currentLineItem % UINT_BIT_COUNT;
 			currentLimbValue = transactionBuffer[currentItemLimbIndex];
-			maxLimbIndex = max_ui(maxLimbIndex, currentItemLimbIndex);
-			minLimbIndex = min_ui(minLimbIndex, currentItemLimbIndex);
+			maxLimbIndex = max_sszt(maxLimbIndex, currentItemLimbIndex);
+			minLimbIndex = min_sszt(minLimbIndex, currentItemLimbIndex);
 
 			currentLimbValue |= 1 << currentItemPosition;
 			transactionBuffer[currentItemLimbIndex] = currentLimbValue;
