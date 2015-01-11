@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Mohamed Ilyes Dimassi.
+ Copyright (c) 2013, 2014, 2015, Mohamed Ilyes Dimassi.
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #include <string.h>
 #include <limits.h>
 
-T_INT * limbCube;
+uint * limbCube;
 
 Transactionset ** srcPtrs;
 Transactionset ** transPtrs;
@@ -47,7 +47,7 @@ AllocTranset * head;
 
 AllocTranset * transetRepo;
 
-T_INT remainingCount;
+uint remainingCount;
 
 TIMESPEC diffTime(TIMESPEC start, TIMESPEC end) {
 	TIMESPEC temp;
@@ -69,11 +69,11 @@ TIMESPEC sumTime(TIMESPEC start, TIMESPEC end) {
 	return temp;
 }
 
-ssize_t max_sszt(ssize_t a, ssize_t b) {
+inline ssize_t max_sszt(ssize_t a, ssize_t b) {
 	return a > b ? a : b;
 }
 
-ssize_t min_sszt(ssize_t a, ssize_t b) {
+inline ssize_t min_sszt(ssize_t a, ssize_t b) {
 	return a > b ? b : a;
 }
 
@@ -106,8 +106,8 @@ void getConceptsFileParams(FILE *filePointer, size_t * linesCountPtr,
 	free(line);
 }
 
-void loadLCMConceptsFile(char *file, Concepts *concepts,
-		T_INT transactionsCount, T_INT itemsCount) {
+void loadLCMConceptsFile(char *file, Concepts *concepts, uint transactionsCount,
+		uint itemsCount) {
 
 	//--------------------------------------------------------------------------
 	// Variables declaration
@@ -116,9 +116,9 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 	//a pointer to the file holding the transactions' list
 	FILE *filePointer;
 
-	T_INT conceptsCount;
+	uint conceptsCount;
 
-	T_INT conceptsCounter;
+	uint conceptsCounter;
 
 	Concept * conceptList;
 
@@ -129,19 +129,19 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 	char *strItem;
 
-	T_INT * transactionsBuffer;
+	uint * transactionsBuffer;
 
-	T_INT * itemsBuffer;
+	uint * itemsBuffer;
 
-	T_INT transactionsCounter;
+	uint transactionsCounter;
 
-	T_INT itemsCounter;
+	uint itemsCounter;
 
-	T_INT element;
+	uint element;
 
-	T_INT * conceptTransactions;
+	uint * conceptTransactions;
 
-	T_INT * conceptItems;
+	uint * conceptItems;
 
 	size_t lineSize;
 
@@ -172,9 +172,9 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 	conceptsCount = linesCount / 2;
 
-	transactionsBuffer = (T_INT *) malloc(sizeof(T_INT) * transactionsCount);
+	transactionsBuffer = (uint *) malloc(sizeof(uint) * transactionsCount);
 
-	itemsBuffer = (T_INT *) malloc(sizeof(T_INT) * itemsCount);
+	itemsBuffer = (uint *) malloc(sizeof(uint) * itemsCount);
 
 	conceptList = (Concept *) malloc(sizeof(Concept) * conceptsCount);
 
@@ -209,12 +209,12 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 			strItem = strtok(NULL, " \n");
 		}
 
-		conceptItems = (T_INT *) malloc(sizeof(T_INT) * itemsCounter);
-		memcpy(conceptItems, itemsBuffer, sizeof(T_INT) * itemsCounter);
+		conceptItems = (uint *) malloc(sizeof(uint) * itemsCounter);
+		memcpy(conceptItems, itemsBuffer, sizeof(uint) * itemsCounter);
 
-		conceptTransactions = (T_INT *) malloc(sizeof(T_INT) * transactionsCounter);
+		conceptTransactions = (uint *) malloc(sizeof(uint) * transactionsCounter);
 		memcpy(conceptTransactions, transactionsBuffer,
-				sizeof(T_INT) * transactionsCounter);
+				sizeof(uint) * transactionsCounter);
 
 		currentConcept = conceptList + conceptsCounter;
 		currentConcept->transactions = conceptTransactions;
@@ -239,8 +239,8 @@ void loadLCMConceptsFile(char *file, Concepts *concepts,
 
 void unloadConcepts(Concepts * concepts) {
 
-	T_INT counter;
-	T_INT count;
+	uint counter;
+	uint count;
 	Concept * conceptPtr;
 	Concept * currConcept;
 
@@ -254,7 +254,6 @@ void unloadConcepts(Concepts * concepts) {
 	}
 
 	free(concepts->concepts);
-	free(concepts);
 }
 
 void getContextFileParams(FILE *filePointer, size_t * transCount,
@@ -349,7 +348,7 @@ void loadDATContextFile(char * file, Transactions *context) {
 	size_t lineSize;
 
 	//Transactions count
-	T_INT limbCount;
+	uint limbCount;
 
 	//a reference to an array containing all transactions
 	Transaction * transactions;
@@ -357,34 +356,34 @@ void loadDATContextFile(char * file, Transactions *context) {
 	//the currently processed transaction
 	Transaction * currentTransaction;
 
-	T_INT currentTransactionIndex;
+	uint currentTransactionIndex;
 
-	T_INT *lineBuffer;
+	uint *lineBuffer;
 
-	T_INT currentLineItem = 0;
+	uint currentLineItem = 0;
 
-	T_INT currentLineItemsIndex;
+	uint currentLineItemsIndex;
 
-	T_INT *transactionBuffer;
+	uint *transactionBuffer;
 
-	T_INT minLimbIndex;
+	uint minLimbIndex;
 
-	T_INT maxLimbIndex;
+	uint maxLimbIndex;
 
-	T_INT currentItemLimbIndex;
+	uint currentItemLimbIndex;
 
-	T_INT currentItemPosition;
+	uint currentItemPosition;
 
-	T_INT currentLimbValue;
+	uint currentLimbValue;
 
-	T_INT * currentTransactionBuffer;
+	uint * currentTransactionBuffer;
 
 	//count the number of items found in each transaction
-	T_INT currTransItemsCnt;
+	uint currTransItemsCnt;
 
-	T_INT transBuffSize;
+	uint transBuffSize;
 
-	T_INT *transBuffArea;
+	uint *transBuffArea;
 
 	//--------------------------------------------------------------------------
 	// Processing
@@ -411,15 +410,15 @@ void loadDATContextFile(char * file, Transactions *context) {
 	line = (char *) malloc(sizeof(char) * lineSize);
 
 	//initialize the items buffer
-	lineBuffer = (T_INT *) malloc(sizeof(T_INT) * itemsCount);
+	lineBuffer = (uint *) malloc(sizeof(uint) * itemsCount);
 
 	limbCount = ((itemsCount - 1) / UINT_BIT_COUNT) + 1;
 
-	transBuffSize = sizeof(T_INT) * limbCount;
+	transBuffSize = sizeof(uint) * limbCount;
 
-	transactionBuffer = (T_INT *) malloc(transBuffSize);
+	transactionBuffer = (uint *) malloc(transBuffSize);
 
-	transBuffArea = (T_INT *) malloc(transBuffSize * transactionsCount);
+	transBuffArea = (uint *) malloc(transBuffSize * transactionsCount);
 
 	//initialize the processed transactions count
 	currentTransactionIndex = 0;
@@ -479,7 +478,7 @@ void loadDATContextFile(char * file, Transactions *context) {
 				+ (limbCount * currentTransactionIndex);
 
 		memcpy(currentTransactionBuffer, transactionBuffer,
-				sizeof(T_INT) * maxLimbIndex);
+				sizeof(uint) * maxLimbIndex);
 
 		//assembling
 		currentTransaction->bufferSize = maxLimbIndex;
@@ -505,9 +504,9 @@ void loadDATContextFile(char * file, Transactions *context) {
 
 void printfConcept(Concept * concept) {
 
-	T_INT i;
-	T_INT count;
-	T_INT * items;
+	uint i;
+	uint count;
+	uint * items;
 
 	printf("<");
 	count = concept->transactionsCount;
@@ -524,9 +523,9 @@ void printfConcept(Concept * concept) {
 	printf(">");
 }
 
-void initTransetPool(T_INT transCount, T_INT limbCount) {
+void initTransetPool(uint transCount, uint limbCount) {
 
-	T_INT levelCounter, rowCounter;
+	uint levelCounter, rowCounter;
 
 	AllocTranset * current;
 
@@ -534,18 +533,18 @@ void initTransetPool(T_INT transCount, T_INT limbCount) {
 
 	Transactionset * transet;
 
-	T_INT * limbCursor;
+	uint * limbCursor;
 
 	srcPtrs = (Transactionset **) malloc(sizeof(Transactionset*) * transCount);
 	transPtrs = (Transactionset **) malloc(sizeof(Transactionset*) * transCount);
 
-	backupInter.buffer = (T_INT *) malloc(sizeof(T_INT) * limbCount);
-	leadInter.buffer = (T_INT *) malloc(sizeof(T_INT) * limbCount);
+	backupInter.buffer = (uint *) malloc(sizeof(uint) * limbCount);
+	leadInter.buffer = (uint *) malloc(sizeof(uint) * limbCount);
 
 	transetRepo = (AllocTranset *) malloc(sizeof(AllocTranset) * transCount);
 
-	limbCube = (T_INT *) malloc(
-			sizeof(T_INT) * limbCount * transCount * transCount);
+	limbCube = (uint *) malloc(
+			sizeof(uint) * limbCount * transCount * transCount);
 
 	limbCursor = limbCube;
 
@@ -611,18 +610,18 @@ void pushTranset(AllocTranset * toPush) {
 	head = toPush;
 }
 
-void freeTransetRepo(T_INT transCount) {
+void freeTransetRepo(uint transCount) {
 
-	T_INT counter;
+	uint counter;
 
 	AllocTranset * current;
 
-//#ifdef DEBUG
-//	if (remainingCount != POOL_SIZE) {
-//		printf("Warning : major memory leak !\n");
-//		printf("%u memory blocks are still in use.\n", POOL_SIZE);
-//	}
-//#endif
+#ifdef DEBUG
+	if (remainingCount != transCount) {
+		printf("Warning : major memory leak !\n");
+		printf("%u memory blocks are still in use.\n", transCount - remainingCount);
+	}
+#endif
 
 	current = transetRepo;
 

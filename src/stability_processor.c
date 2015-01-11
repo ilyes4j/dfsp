@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Mohamed Ilyes Dimassi.
+ Copyright (c) 2013, 2014, 2015, Mohamed Ilyes Dimassi.
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -35,13 +35,13 @@
 #include <stdio.h>
 #include <math.h>
 
-T_INT nodeCount;
+uint nodeCount;
 
-T_INT approxCount;
+uint approxCount;
 
-T_INT doneApprox;
+uint doneApprox;
 
-T_INT crossedUpperThreshold;
+uint crossedUpperThreshold;
 
 extern Transactionset ** srcPtrs;
 extern Transactionset ** transPtrs;
@@ -49,110 +49,22 @@ extern Transactionset ** transPtrs;
 extern Transaction backupInter;
 extern Transaction leadInter;
 
-T_INT digitsCount(T_INT value) {
-
-	//less than 2 digits
-	if (value < 10)
-		return 1;
-
-	//less than 3 digits
-	if (value < 100)
-		return 2;
-
-	//less than 4 digits
-	if (value < 1000)
-		return 3;
-
-	//less than 5 digits
-	if (value < 10000)
-		return 4;
-
-	//less than 6 digits
-	if (value < 100000)
-		return 5;
-
-	//less than 7 digits
-	if (value < 1000000)
-		return 6;
-
-	//less than 8 digits
-	if (value < 10000000)
-		return 7;
-
-	//less than 9 digits
-	if (value < 100000000)
-		return 8;
-
-	if (value < 1000000000)
-		return 9;
-
-	return 10;
-}
-
 void findThreshold(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
-		T_INT threshold, T_INT extentSize) {
+		uint extentSize, uint threshold, uint precision) {
 
 	mpz_init2(*mpzReverseUpperThreshold, extentSize);
 	mpz_setbit(*mpzReverseUpperThreshold, extentSize);
 
-	mpz_init2(*mpzThreshold, extentSize + sizeof(T_INT));
+	mpz_init2(*mpzThreshold, extentSize + sizeof(uint));
 	mpz_setbit(*mpzThreshold, extentSize);
 
 	mpz_mul_ui(*mpzThreshold, *mpzThreshold, threshold);
-	mpz_fdiv_q_ui(*mpzThreshold, *mpzThreshold, pow(10, digitsCount(threshold)));
+	mpz_fdiv_q_ui(*mpzThreshold, *mpzThreshold, pow(10, precision));
 
 	mpz_sub(*mpzThreshold, *mpzReverseUpperThreshold, *mpzThreshold);
 }
 
-void findThresholdDebug(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
-		T_INT threshold, T_INT extentSize) {
-
-	//////////////////////////////////////////////////////////////////////////////
-	//debug
-	//////////////////////////////////////////////////////////////////////////////
-	mpf_t mpfThreshold;
-	mpf_t mpfTotal;
-	mpf_init2(mpfThreshold, 1000);
-	mpf_init2(mpfTotal, 1000);
-	//////////////////////////////////////////////////////////////////////////////
-	//end debug
-	//////////////////////////////////////////////////////////////////////////////
-
-	mpz_init2(*mpzReverseUpperThreshold, extentSize);
-	mpz_setbit(*mpzReverseUpperThreshold, extentSize);
-
-	mpz_init2(*mpzThreshold, extentSize + sizeof(T_INT));
-	mpz_setbit(*mpzThreshold, extentSize);
-
-	mpz_mul_ui(*mpzThreshold, *mpzThreshold, threshold);
-	mpz_fdiv_q_ui(*mpzThreshold, *mpzThreshold, pow(10, digitsCount(threshold)));
-
-	//////////////////////////////////////////////////////////////////////////////
-	//debug
-	//////////////////////////////////////////////////////////////////////////////
-	mpf_set_z(mpfThreshold, *mpzThreshold);
-	mpf_set_z(mpfTotal, *mpzReverseUpperThreshold);
-	mpf_div(mpfThreshold, mpfThreshold, mpfTotal);
-	gmp_printf("%Ff\n", mpfThreshold);
-	//////////////////////////////////////////////////////////////////////////////
-	//end debug
-	//////////////////////////////////////////////////////////////////////////////
-
-	mpz_sub(*mpzThreshold, *mpzReverseUpperThreshold, *mpzThreshold);
-
-	//////////////////////////////////////////////////////////////////////////////
-	//debug
-	//////////////////////////////////////////////////////////////////////////////
-	mpf_clear(mpfThreshold);
-	mpf_clear(mpfTotal);
-	//////////////////////////////////////////////////////////////////////////////
-	//end debug
-	//////////////////////////////////////////////////////////////////////////////
-
-}
-
-void findToleranceRange(mpz_t * mpzTolRange, size_t tolerance,
-		size_t extentSize) {
+void findToleranceRange(mpz_t * mpzTolRange, uint tolerance, size_t extentSize) {
 
 	//processing
 	mpz_init2(*mpzTolRange, extentSize);
@@ -161,19 +73,19 @@ void findToleranceRange(mpz_t * mpzTolRange, size_t tolerance,
 	mpz_fdiv_q_ui(*mpzTolRange, *mpzTolRange, pow(10, tolerance));
 }
 
-T_INT getExploredNodesCount() {
+uint getExploredNodesCount() {
 	return nodeCount;
 }
 
-T_INT getApproxExploredNodesCount() {
+uint getApproxExploredNodesCount() {
 	return approxCount;
 }
 
-T_INT hasDoneApprox() {
+uint hasDoneApprox() {
 	return doneApprox;
 }
 
-T_INT hasCrossedThreshold() {
+uint hasCrossedThreshold() {
 	return crossedUpperThreshold;
 }
 
@@ -182,30 +94,29 @@ T_INT hasCrossedThreshold() {
 //in the formal concept extent. For each single-transaction Transactionset is
 //flagged as a generator or a non generator. A generator is flagged as forbidden
 //and will later be ignored from the exploration process
-Transactionset * initialize(T_INT *items, T_INT itemsCount,
-		mpz_t * genTotalCountGMP, mpz_t * genLocalCountGMP, mpz_t * rangeCountGMP,
-		Transactions * transactions, T_INT refCount) {
+void initialize(uint *items, uint itemsCount, mpz_t * genTotalCountGMP,
+		mpz_t * genLocalCountGMP, mpz_t * rangeCountGMP,
+		Transactions * transactions, uint refCount, Transactionset * root) {
 
 	AllocTranset * alloc;
 
-	T_INT transactionIndex;
+	uint transactionIndex;
 
 	Transaction * transactionsList;
 	Transaction * currentTransaction;
-	T_INT currentTransactionItemsCount;
+	uint currentTransactionItemsCount;
 
 	Transaction * currentIntersect;
 
 	//counter for the available transactions
-	T_INT i;
+	uint i;
 
 	//counter only for the transactions added
-	T_INT j;
+	uint j;
 
 	Transactionset * elements;
 	Transactionset * current;
-	Transactionset * ret;
-	T_INT totalChildrenForbiddenCount;
+	uint totalChildrenForbiddenCount;
 
 	//processing
 	transactionsList = transactions->encodedTransactions;
@@ -253,15 +164,13 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 				currentTransaction->firstSignificantLimb;
 		currentIntersect->itemCount = currentTransaction->itemCount;
 		memcpy(currentIntersect->buffer, currentTransaction->buffer,
-				sizeof(T_INT) * currentTransactionItemsCount);
+				sizeof(uint) * currentTransactionItemsCount);
 
 		j++;
 	}
-
-	ret = (Transactionset *) malloc(sizeof(Transactionset));
-	ret->children = elements;
-	ret->alloc = alloc;
-	ret->childrenCount = j;
+	root->children = elements;
+	root->alloc = alloc;
+	root->childrenCount = j;
 
 	//initialize the number of explored candidates
 	nodeCount = j;
@@ -280,8 +189,6 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 
 	//update the window guard
 	mpz_sub(*rangeCountGMP, *rangeCountGMP, *genLocalCountGMP);
-
-	return ret;
 }
 
 //Build the resulting intersection between Transaction * result and
@@ -289,10 +196,10 @@ Transactionset * initialize(T_INT *items, T_INT itemsCount,
 void buildIntersection(Transaction * result, Transaction * left,
 		Transaction * right) {
 
-	T_INT intersectCount;
-	T_INT res1stSigLimb;
-	T_INT resLimbCount;
-	T_INT *leftBuffer, *rightBuffer, *resBuffer;
+	uint intersectCount;
+	uint res1stSigLimb;
+	uint resLimbCount;
+	uint *leftBuffer, *rightBuffer, *resBuffer;
 
 	res1stSigLimb = max_sszt(left->firstSignificantLimb,
 			right->firstSignificantLimb);
@@ -323,12 +230,13 @@ void buildIntersection(Transaction * result, Transaction * left,
 void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 		mpz_t *genLocalCountGMP, mpz_t * nongenTotalCountGMP,
 		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
-		mpz_t * mpzUpperThreshold, Transactions * transactions, T_INT refCount) {
+		mpz_t * mpzUpperThreshold, Transactions * transactions, uint refCount,
+		uint level) {
 
-	T_INT startIdx;
+	uint startIdx;
 
 	//at the end this counter will equals the non generators count
-	T_INT endIdx;
+	uint endIdx;
 
 	Transaction * backupInterPtr;
 
@@ -337,7 +245,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	Transaction * swapInterPrt;
 
 	//declaration
-	T_INT j, k, l, currentCount, leftEltPotChildrenCnt, variationValue;
+	uint j, k, l, currentCount, leftEltPotChildrenCnt, variationValue;
 
 	int i;
 
@@ -347,8 +255,8 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	Transactionset * rightElement;
 	Transactionset * leftEltCurrentChild;
 
-	T_INT forbiddenLeftEltChildrenCount;
-	T_INT nonGenCurrCnt;
+	uint forbiddenLeftEltChildrenCount;
+	uint nonGenCurrCnt;
 
 	Transaction * leftEltIntersect;
 	Transaction * leftEltCurChildIntersect;
@@ -403,7 +311,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 	backupInter.firstSignificantLimb = srcIntersect->firstSignificantLimb;
 
 	memcpy(backupInter.buffer, srcIntersect->buffer,
-			srcIntersect->limbCount * sizeof(T_INT));
+			srcIntersect->limbCount * sizeof(uint));
 
 	//do not forget to update the counter which will be used in the next loop
 	counter--;
@@ -535,7 +443,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 			if (nonGenCurrCnt > 1) {
 				processRecursive(leftElement, genTotalCountGMP, genLocalCountGMP,
 						nongenTotalCountGMP, nongenLocalCountGMP, rangeCountGMP,
-						mpzUpperThreshold, transactions, refCount);
+						mpzUpperThreshold, transactions, refCount, level + 1);
 			} else if (nonGenCurrCnt == 1) {
 				mpz_add_ui(*nongenLocalCountGMP, *nongenLocalCountGMP, 1);
 				mpz_add_ui(*nongenTotalCountGMP, *nongenTotalCountGMP, 1);
@@ -556,14 +464,14 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 
 //Debug-only function
 //Count all nodes in a Transactionset recursively
-T_INT elementsCount(Transactionset * root) {
+uint elementsCount(Transactionset * root) {
 
 	Transactionset * children;
 	Transactionset * currentChild;
 
-	T_INT childrenCount;
-	T_INT i;
-	T_INT eltCount;
+	uint childrenCount;
+	uint i;
+	uint eltCount;
 
 	children = root->children;
 	childrenCount = root->childrenCount;

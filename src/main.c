@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Mohamed Ilyes Dimassi.
+ Copyright (c) 2013, 2014, 2015, Mohamed Ilyes Dimassi.
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 #include <gmp.h>
 #include "stability_processor.h"
 #include "transaction_loader.h"
+#include "cli.h"
 
 int main(int argc, char *argv[]) {
 
@@ -48,20 +49,22 @@ int main(int argc, char *argv[]) {
 	Transactions trans;
 	Transactions * transPtr;
 
-	Concepts * concepts;
+	Concepts concepts;
+	Concepts * conceptsPtr;
+
 	Concept * conceptList;
 	Concept * currentConcept;
 
-	T_INT currCptItemsCnt;
-	T_INT currCptTransCnt;
-	T_INT conceptCounter;
-	T_INT conceptListCount;
+	uint currCptItemsCnt;
+	uint currCptTransCnt;
+	uint conceptCounter;
+	uint conceptListCount;
 
 	char * selectedContextFile;
 	char * selectedConceptsFile;
 
-	T_INT exploredNodesCount;
-	T_INT approxExploredNodesCount;
+	uint exploredNodesCount;
+	uint approxExploredNodesCount;
 
 	mpz_t currCptNonGenCountGMP;
 	mpz_t currCptNonGenLocalCountGMP;
@@ -77,30 +80,43 @@ int main(int argc, char *argv[]) {
 	mpz_t mpzUpperThreshold;
 	mpz_t mpzReverseUpperThreshold;
 
-	size_t precision;
-
 	ssize_t toConcept;
 	ssize_t fromConcept;
 
-	T_INT upperThreshold;
+	uint upperThreshold;
+	uint stabPrecision;
+
+	uint err;
 
 	//--------------------------------------------------------------------------
 	// Processing
 	//--------------------------------------------------------------------------
 	transPtr = &trans;
+	conceptsPtr = &concepts;
+
+	if (argc < 2) {
+		invalidArguments("");
+		exit(EXIT_FAILURE);
+	}
 
 	selectedContextFile = argv[1];
 	selectedConceptsFile = argv[2];
 	fromConcept = strtol(argv[3], NULL, 10);
 	toConcept = strtol(argv[4], NULL, 10);
-	upperThreshold = strtoul(argv[5], NULL, 10);
 
-	precision = digitsCount(upperThreshold);
+	upperThreshold = parseDoubleFraction(argv[5], &err);
 
-	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V0.1 Beta\n\n");
+	if (err != 0) {
+		invalidArguments("Invalid upper stability threshold");
+		exit(EXIT_FAILURE);
+	}
 
-	printf("Using Database %s\n", selectedContextFile);
-	printf("Using Database %s\n", selectedConceptsFile);
+	stabPrecision = digitsCount(upperThreshold);
+
+	printf("\nDEPTH-FIRST-STABILITY-PROCESSOR V1.0 Beta\n\n");
+
+	printf("Using database %s\n", selectedContextFile);
+	printf("Using concepts %s\n", selectedConceptsFile);
 
 	printf("\nLoading transactions...\n");
 
@@ -110,9 +126,7 @@ int main(int argc, char *argv[]) {
 
 	printf("\nLoading Formal Concepts...\n");
 
-	concepts = (Concepts *) malloc(sizeof(Concepts));
-
-	loadLCMConceptsFile(selectedConceptsFile, concepts,
+	loadLCMConceptsFile(selectedConceptsFile, conceptsPtr,
 			transPtr->transactionsCount, transPtr->itemCount);
 
 	printf("Formal Concepts Loaded\n\n");
@@ -122,8 +136,8 @@ int main(int argc, char *argv[]) {
 	printf("Output format :\n");
 	printf("[Index][Extent][visited][approx][gain][Time][Stability][Done]\n\n");
 
-	conceptList = concepts->concepts;
-	conceptListCount = concepts->count;
+	conceptList = concepts.concepts;
+	conceptListCount = concepts.count;
 
 	//if negative value it is considered an offset to the concept count
 	toConcept = toConcept > 0 ? toConcept : conceptListCount + toConcept;
@@ -167,11 +181,11 @@ int main(int argc, char *argv[]) {
 		//obtained efficiently by setting the currCptTransCnt bit
 		mpz_setbit(currCptTotalCountGMP, currCptTransCnt);
 
-		findThreshold(&mpzUpperThreshold, &mpzReverseUpperThreshold, upperThreshold,
-				currCptTransCnt);
+		findThreshold(&mpzUpperThreshold, &mpzReverseUpperThreshold,
+				currCptTransCnt, upperThreshold, stabPrecision);
 
 		//build the tolerance range
-		findToleranceRange(&mpzTolRange, precision, currCptTransCnt);
+		findToleranceRange(&mpzTolRange, stabPrecision, currCptTransCnt);
 
 		//Total - range
 		mpz_sub(mpzTolRange, currCptTotalCountGMP, mpzTolRange);
@@ -180,14 +194,16 @@ int main(int argc, char *argv[]) {
 		mpz_set_ui(currCptNonGenCountGMP, 1);
 		mpz_sub_ui(mpzTolRange, mpzTolRange, 1);
 
-		root = initialize(currentConcept->transactions, currCptTransCnt,
+		root = (Transactionset *) malloc(sizeof(Transactionset));
+
+		initialize(currentConcept->transactions, currCptTransCnt,
 				&currCptGenCountGMP, &currCptGenLocalCountGMP, &mpzTolRange, transPtr,
-				currCptItemsCnt);
+				currCptItemsCnt, root);
 
 		if (root->childrenCount > 1) {
 			processRecursive(root, &currCptGenCountGMP, &currCptGenLocalCountGMP,
 					&currCptNonGenCountGMP, &currCptNonGenLocalCountGMP, &mpzTolRange,
-					&mpzUpperThreshold, transPtr, currCptItemsCnt);
+					&mpzUpperThreshold, transPtr, currCptItemsCnt, 1);
 		}
 
 		exploredNodesCount = getExploredNodesCount();
@@ -241,7 +257,7 @@ int main(int argc, char *argv[]) {
 
 	freeTransetRepo(transPtr->transactionsCount);
 
-	unloadConcepts(concepts);
+	unloadConcepts(conceptsPtr);
 
 	free(transPtr->transBuffArea);
 	free(transPtr->encodedTransactions);

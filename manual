@@ -1,0 +1,35 @@
+NAME
+
+	dfsp v0.1 beta
+
+SYNOPSIS
+
+	dfsp <context_file> <concepts_file> start_index end_index upper_threshold
+
+DESCRIPTION
+
+	dfsp is a command line tool that finds the stability measure for a set of formal concepts.
+
+
+OPTIONS
+
+	<context_file>
+		file containing the formal context.
+
+	<concepts_file>
+		file containing the formal concepts to be processed
+
+	start_index
+		the index of the first concept to be processed
+
+	end_index
+		the index of the last concept to be processed
+
+	upper_threshold
+		A real number in the range ]1, 0[ with a fractinal part not containing more than 9 digits. The number of digits in the threshold indicate the precision of threshold and can be adjusted as needed.
+
+Example
+
+	dfsp data/chess/chess.dat data/chess/chess_concepts.dat -100 0 90
+
+	returns the stability index of the last 100 concepts. Concepts having stability below 0.90 will be ignored. The stability of concepts above 0.90 is returned with the same precision as the threshold.

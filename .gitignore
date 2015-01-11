@@ -1,5 +1,7 @@
 # Generated release
 release/dfsp
+release/src/cli.d
+release/src/cli.o
 release/src/main.d
 release/src/main.o
 release/src/stability_processor.d
@@ -9,6 +11,8 @@ release/src/transaction_loader.o
 
 # Generated debug
 debug/dfsp
+debug/src/cli.d
+debug/src/cli.o
 debug/src/main.d
 debug/src/main.o
 debug/src/stability_processor.d

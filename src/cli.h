@@ -10,7 +10,7 @@
  notice, this list of conditions and the following disclaimer in the
  documentation and/or other materials provided with the distribution.
  3. All advertising materials mentioning features or use of this software
- must display the following acknowledgement:
+ must display the following acknowledgment:
  This product includes software developed by the Mohamed Ilyes Dimassi.
  4. Neither the name of the FST http://www.fst.rnu.tn/ nor the
  names of its contributors may be used to endorse or promote products
@@ -28,48 +28,17 @@
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef STABILITY_PROCESSOR_H_
-#define STABILITY_PROCESSOR_H_
+#ifndef CLI_H_
+#define CLI_H_
 
-#include "transaction_loader.h"
+#define CHUNK 1024 /* read 1024 bytes at a time */
 
-void initialize(uint *items, uint itemsCount, mpz_t * genTotalCountGMP,
-		mpz_t * genLocalCountGMP, mpz_t * rangeCountGMP,
-		Transactions * transactions, uint refCount, Transactionset * root);
+#define manual "manual"
 
-void processRecursive(Transactionset * current, mpz_t * genTotalCountGMP,
-		mpz_t * genLocalCountGMP, mpz_t * nongenTotalCountGMP,
-		mpz_t * nongenLocalCountGMP, mpz_t * rangeCountGMP,
-		mpz_t * mpzUpperThreshold, Transactions * transactions, uint refCount,
-		uint level);
+uint parseDoubleFraction(const char * const strDouble, uint * const err);
 
-uint elementsCount(Transactionset * root);
+void invalidArguments(char * message);
 
-uint nonForbiddenElementsCount(Transactionset * root);
+unsigned int digitsCount(unsigned int value);
 
-uint getExploredNodesCount();
-
-uint getApproxExploredNodesCount();
-
-void displayElements(Transactionset * root);
-
-int compareTransetByCardDesc(const void * a, const void * b);
-
-int compareTransetByCardAsc(const void * a, const void * b);
-
-int compareTransetPtrByCardAsc(const void * a, const void * b);
-
-int compareTransetPtrByCardDesc(const void * a, const void * b);
-
-int compareConceptByProc(const void * a, const void * b);
-
-void findToleranceRange(mpz_t * mpzTolRange, uint tolerance, size_t extentSize);
-
-void findThreshold(mpz_t * mpzThreshold, mpz_t * mpzReverseUpperThreshold,
-		uint extentSize, uint threshold, uint precision);
-
-uint hasDoneApprox();
-
-uint hasCrossedThreshold();
-
-#endif
+#endif /* CLI_H_ */

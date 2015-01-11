@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Mohamed Ilyes Dimassi.
+ Copyright (c) 2013, 2014, 2015, Mohamed Ilyes Dimassi.
  All rights reserved.
 
  Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,10 @@
 #include <time.h>
 #include <gmp.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 //initialize the unsigned int buffer bit count
-#define UINT_BIT_COUNT (sizeof(T_INT) * CHAR_BIT)
+#define UINT_BIT_COUNT (sizeof(uint) * CHAR_BIT)
 
 //the last bit in an integer buffer
 #define LAST_BIT_INDEX (UINT_BIT_COUNT - 1)
@@ -49,51 +50,49 @@
 //------------------------------------------------------------------------------
 typedef struct timespec TIMESPEC;
 
-typedef unsigned int T_INT;
-
 //------------------------------------------------------------------------------
 //Functions declarations
 //------------------------------------------------------------------------------
-ssize_t max_sszt(ssize_t a, ssize_t b);
-ssize_t min_sszt(ssize_t a, ssize_t b);
+inline ssize_t max_sszt(ssize_t a, ssize_t b);
+inline ssize_t min_sszt(ssize_t a, ssize_t b);
 
 TIMESPEC diffTime(TIMESPEC start, TIMESPEC end);
 TIMESPEC sumTime(TIMESPEC start, TIMESPEC end);
 
 struct transaction {
-	T_INT * buffer;
-	T_INT bufferSize;
-	T_INT firstSignificantLimb;
-	T_INT limbCount;
+	uint * buffer;
+	uint bufferSize;
+	uint firstSignificantLimb;
+	uint limbCount;
 
 	//keep track of the bits set to 1 which represent the total count of items in
 	//this itemset
-	T_INT itemCount;
+	uint itemCount;
 };
 typedef struct transaction Transaction;
 
 struct transactions {
-	T_INT limbCount;
-	T_INT itemCount;
-	T_INT transactionsCount;
+	uint limbCount;
+	uint itemCount;
+	uint transactionsCount;
 	Transaction *encodedTransactions;
-	T_INT itemsPerLimb;
-	T_INT * transBuffArea;
+	uint itemsPerLimb;
+	uint * transBuffArea;
 };
 typedef struct transactions Transactions;
 
 struct concept {
-	T_INT *items;
-	T_INT *transactions;
-	T_INT itemsCount;
-	T_INT transactionsCount;
-	T_INT processed;
+	uint *items;
+	uint *transactions;
+	uint itemsCount;
+	uint transactionsCount;
+	uint processed;
 };
 typedef struct concept Concept;
 
 struct concepts {
 	Concept * concepts;
-	T_INT count;
+	uint count;
 };
 typedef struct concepts Concepts;
 
@@ -109,9 +108,9 @@ typedef struct alloctranset AllocTranset;
 
 struct transactionset {
 
-	T_INT transactions;
+	uint transactions;
 
-	T_INT childrenCount;
+	uint childrenCount;
 
 	Transaction intersect;
 
@@ -122,20 +121,20 @@ struct transactionset {
 
 void loadDATContextFile(char * file, Transactions *context);
 
-void loadLCMConceptsFile(char *file, Concepts *concepts,
-		T_INT transactionsCount, T_INT itemsCount);
+void loadLCMConceptsFile(char *file, Concepts *concepts, uint transactionsCount,
+		uint itemsCount);
 
 void unloadConcepts(Concepts * concepts);
 
 void printfConcept(Concept * concept);
 
-void initTransetPool(T_INT transCount, T_INT limbCount);
+void initTransetPool(uint transCount, uint limbCount);
 
 void pushTranset(AllocTranset * toPush);
 
 AllocTranset * popTranset();
 
-void freeTransetRepo(T_INT transCount);
+void freeTransetRepo(uint transCount);
 
 int compareCptByTransetSize(const void * a, const void * b);
 
