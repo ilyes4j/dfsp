@@ -360,7 +360,7 @@ void loadDATContextFile(char * file, Transactions *context) {
 
 	uint *lineBuffer;
 
-	uint currentLineItem = 0;
+	uint currentLineItem;
 
 	uint currentLineItemsIndex;
 
@@ -388,6 +388,8 @@ void loadDATContextFile(char * file, Transactions *context) {
 	//--------------------------------------------------------------------------
 	// Processing
 	//--------------------------------------------------------------------------
+
+	currentLineItem = 0;
 
 	//read the transactions file
 	filePointer = fopen(file, "r");
@@ -438,12 +440,13 @@ void loadDATContextFile(char * file, Transactions *context) {
 
 			strItem = strtok(NULL, " \n");
 			lineBuffer[currentLineItemsIndex] = currentLineItem;
-			currentLineItemsIndex++;
 
 			if (currentLineItemsIndex >= itemsCount) {
 				printf("Error while parsing context file !");
 				exit(EXIT_FAILURE);
 			}
+
+			currentLineItemsIndex++;
 		}
 
 		maxLimbIndex = 0;
