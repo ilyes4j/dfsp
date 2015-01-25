@@ -38,7 +38,7 @@
 uint * limbCube;
 
 Transactionset ** srcPtrs;
-Transactionset ** transPtrs;
+Transactionset ** transPtrsArea;
 
 Transaction backupInter;
 Transaction leadInter;
@@ -539,7 +539,8 @@ void initTransetPool(uint transCount, uint limbCount) {
 	uint * limbCursor;
 
 	srcPtrs = (Transactionset **) malloc(sizeof(Transactionset*) * transCount);
-	transPtrs = (Transactionset **) malloc(sizeof(Transactionset*) * transCount);
+	transPtrsArea = (Transactionset **) malloc(
+			sizeof(Transactionset*) * transCount * transCount);
 
 	backupInter.buffer = (uint *) malloc(sizeof(uint) * limbCount);
 	leadInter.buffer = (uint *) malloc(sizeof(uint) * limbCount);
@@ -639,7 +640,7 @@ void freeTransetRepo(uint transCount) {
 
 	free(transetRepo);
 	free(srcPtrs);
-	free(transPtrs);
+	free(transPtrsArea);
 	free(limbCube);
 
 	free(backupInter.buffer);

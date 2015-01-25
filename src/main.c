@@ -235,6 +235,9 @@ int main(int argc, char *argv[]) {
 			//gmp_printf("%Zd\n", currCptGenCountGMP);
 			//gmp_printf("%Zd\n", currCptNonGenCountGMP);
 			//gmp_printf("%Zd\n\n", currCptTotalCountGMP);
+		} else {
+			printf("%4u; %6u; %10u; CANCELED\n", conceptCounter, currCptTransCnt,
+					exploredNodesCount);
 		}
 
 		pushTranset(root->alloc);

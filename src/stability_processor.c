@@ -44,7 +44,7 @@ uint doneApprox;
 uint crossedUpperThreshold;
 
 extern Transactionset ** srcPtrs;
-extern Transactionset ** transPtrs;
+extern Transactionset ** transPtrsArea;
 
 extern Transaction backupInter;
 extern Transaction leadInter;
@@ -269,7 +269,15 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 
 	AllocTranset * alloc;
 
+	Transactionset ** transPtrs;
+
+	uint transCount;
+
 	//operations
+	transCount = transactions->transactionsCount;
+
+	transPtrs = transPtrsArea + ((level - 1) * transCount);
+
 	//get the current elment's children count
 	currentCount = current->childrenCount;
 
@@ -346,7 +354,7 @@ void processRecursive(Transactionset * current, mpz_t *genTotalCountGMP,
 
 	//GMP negative counting
 	//counting all non generators and their supersets
-	//TODO use limb direct access to fill whole limbs with ones using a single
+	//TODO use limb direct access to fill whole limbs with '1's using a single
 	//operation
 	mpz_set_ui(*nongenLocalCountGMP, 0);
 	mpz_setbit(*nongenLocalCountGMP, currentCount - startIdx);
